@@ -12,3 +12,4 @@ All notable changes are recorded here. The format follows
   dependency review), CodeQL, OpenSSF Scorecard, release workflow with build-provenance
   attestation, Dependabot, security policy, contribution guide, agent instructions
   (`AGENTS.md`, imported by `CLAUDE.md`) and decision records in `docs/decisions/`.
+- Pipeline jobs that need a public repository (dependency review, CodeQL, Scorecard, release attestation) are skipped while the repository is private.

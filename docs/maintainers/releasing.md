@@ -1,6 +1,6 @@
 # Releasing
 
-Releases are tag-driven. Pushing a tag `vX.Y.Z` runs [`release.yml`](../../.github/workflows/release.yml), which builds a universal macOS binary, attests its build provenance, and publishes a GitHub release.
+Releases are tag-driven. Pushing a tag `vX.Y.Z` runs [`release.yml`](../../.github/workflows/release.yml), which builds a universal macOS binary, attests its build provenance, and publishes a GitHub release. Only a macOS binary is built for now, because the credential store is implemented for macOS only (ADR 0006); Linux and Windows builds wait for a store on those platforms.
 
 ## Cut a release
 

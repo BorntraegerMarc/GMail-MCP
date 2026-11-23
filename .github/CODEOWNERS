@@ -9,7 +9,8 @@
 /src/http.rs              @BorntraegerMarc
 /src/policy.rs            @BorntraegerMarc
 /src/auth.rs              @BorntraegerMarc
-/src/keychain.rs          @BorntraegerMarc
+/src/store.rs             @BorntraegerMarc
+/src/store/               @BorntraegerMarc
 /src/draft.rs             @BorntraegerMarc
 /src/tools.rs             @BorntraegerMarc
 /src/text.rs              @BorntraegerMarc

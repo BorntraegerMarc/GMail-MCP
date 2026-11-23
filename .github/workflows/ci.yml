@@ -60,13 +60,11 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
 
   test:
-    name: test (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: test
+    # The whole suite runs on Linux. Code that only compiles on one platform (the macOS
+    # credential store, phase 2) gets its own narrow job on that platform when it lands (ADR 0012).
+    runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest]
     permissions:
       contents: read
     steps:
@@ -153,8 +151,9 @@ jobs:
 
   dependency-review:
     name: dependency-review
-    # Needs a pull request diff; skipped on pushes to main.
-    if: github.event_name == 'pull_request'
+    # Needs a pull request diff, so it is skipped on pushes to main. On a private repository it
+    # also needs GitHub Code Security, so it runs only while the repository is public (ADR 0011).
+    if: github.event_name == 'pull_request' && github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

@@ -27,10 +27,10 @@ body:
     validations:
       required: true
   - type: input
-    id: macos
+    id: os
     attributes:
-      label: macOS version and architecture
-      placeholder: macOS 15, Apple silicon
+      label: Operating system and architecture
+      placeholder: macOS 15, Apple silicon, or Ubuntu 24.04, x86-64
     validations:
       required: true
   - type: dropdown

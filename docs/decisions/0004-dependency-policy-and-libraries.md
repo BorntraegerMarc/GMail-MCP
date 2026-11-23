@@ -9,7 +9,7 @@ Supply chain is the first threat in the README's security table. In the planned 
 
 ## Decision
 
-Use official or very widely used libraries for MCP, HTTP, OAuth, MIME, HTML conversion and Keychain access instead of hand-rolling them. A new direct dependency must be official or very widely used and actively maintained, MIT or Apache-2.0 (or a compatible permissive license), exactly pinned as `=x.y.z` and justified in its PR (checklist: `CONTRIBUTING.md`). The exact pin keeps a direct dependency's version from moving without a visible `Cargo.toml` edit, even in a build that ignores the lockfile. `Cargo.lock` is committed and CI and release builds use `--locked`, so they resolve exactly the committed versions. Controls:
+Use official or very widely used libraries for MCP, HTTP, OAuth, MIME, HTML conversion and credential storage instead of hand-rolling them. A new direct dependency must be official or very widely used and actively maintained, MIT or Apache-2.0 (or a compatible permissive license), exactly pinned as `=x.y.z` and justified in its PR (checklist: `CONTRIBUTING.md`). The exact pin keeps a direct dependency's version from moving without a visible `Cargo.toml` edit, even in a build that ignores the lockfile. `Cargo.lock` is committed and CI and release builds use `--locked`, so they resolve exactly the committed versions. Controls:
 
 - `deny.toml` denies a named list of crates from the usual alternative HTTP/TLS stacks, any source but crates.io and non-permissive licenses. It cannot detect an unlisted HTTP client, and `multiple-versions` only warns. Planned in phase 1, with `ureq`: a per-crate `deny-multiple-versions = true` entry, so a second `ureq` major fails the bans check instead of being caught only by reading the `Cargo.lock` diff.
 - The planned `tests/deps_policy.rs` fails when the direct dependency list changes without updating its allowlist, so additions are visible in review. Only review judges whether a crate is official or very widely used and whether it is pinned with `=` (`wildcards = "deny"` rejects only wildcard requirements); the PR template has the author attest to both.
@@ -26,7 +26,7 @@ Chosen libraries (versions as measured on 2026-11-23; `Cargo.toml` will hold the
 | `lettre` 0.11 (builder only) | MIME drafts with strict address parsing; nothing is ever sent, so no SMTP transport |
 | `html2text` | HTML-only mail to text instead of hand-rolled parsing |
 | `base64` | Gmail's base64url encoding of bodies and drafts |
-| `security-framework` (macOS only) | Keychain access, used directly instead of `keyring` (0006) |
+| `security-framework` (macOS only) | The macOS Keychain store, used directly instead of `keyring` (0006); stores for other platforms are TODO |
 | `proptest` (dev only) | Property tests for untrusted-input handling |
 
 - Rejected: `google-gmail1` (community-generated, brings a hyper plus tokio stack and exposes every send and delete method, defeating a minimal surface); `keyring` 4.x (reason in 0006); `reqwest` and `hyper` (a second HTTP stack); `oauth2`'s built-in `ureq` feature (reason and replacement in 0003); hand-rolled OAuth and MIME (see Context).
@@ -50,6 +50,6 @@ Chosen libraries (versions as measured on 2026-11-23; `Cargo.toml` will hold the
 
 ## References
 
-- Decision records: [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md), [0005-untrusted-email-content.md](0005-untrusted-email-content.md), [0006-credentials-in-macos-keychain.md](0006-credentials-in-macos-keychain.md), [0007-supply-chain-posture.md](0007-supply-chain-posture.md)
+- Decision records: [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md), [0005-untrusted-email-content.md](0005-untrusted-email-content.md), [0006-credentials-in-os-credential-store.md](0006-credentials-in-os-credential-store.md), [0007-supply-chain-posture.md](0007-supply-chain-posture.md)
 - Repo files: [README.md](../../README.md), [CONTRIBUTING.md](../../CONTRIBUTING.md), [deny.toml](../../deny.toml), [Cargo.toml](../../Cargo.toml), [rust-toolchain.toml](../../rust-toolchain.toml), [.github/dependabot.yml](../../.github/dependabot.yml), [.github/PULL_REQUEST_TEMPLATE.md](../../.github/PULL_REQUEST_TEMPLATE.md), [.github/workflows/ci.yml](../../.github/workflows/ci.yml), [.github/workflows/security.yml](../../.github/workflows/security.yml), [.github/workflows/release.yml](../../.github/workflows/release.yml), [docs/maintainers/releasing.md](../maintainers/releasing.md)
 

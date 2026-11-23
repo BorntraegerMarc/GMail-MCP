@@ -37,7 +37,7 @@ Permissions come in two independent layers, and the default is read-only. Drafts
 
 - [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md): the egress allowlist that backs the no-send guarantee in drafts mode.
 - [0005-untrusted-email-content.md](0005-untrusted-email-content.md): prompt injection through email and the limits of wrapping.
-- [0006-credentials-in-macos-keychain.md](0006-credentials-in-macos-keychain.md): the Keychain item that holds the granted scopes.
+- [0006-credentials-in-os-credential-store.md](0006-credentials-in-os-credential-store.md): the credential-store item that holds the granted scopes.
 - [README.md](../../README.md): "Security design at a glance", "Two layers of permission" and "Honest limits".
 - [CONTRIBUTING.md](../../CONTRIBUTING.md): ground rules on write capability and on changing what the server can do.
 - [SECURITY.md](../../SECURITY.md): any way to make the server send or change settings is in scope for vulnerability reports.

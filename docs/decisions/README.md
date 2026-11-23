@@ -53,8 +53,10 @@ Phases are the planned build order (delete this sentence once phase 4 ships): 0 
 | [0003](0003-single-egress-allowlist.md) | Single egress function with an allowlist | Accepted (2026-11-23) | Planned, phases 1 and 2 |
 | [0004](0004-dependency-policy-and-libraries.md) | Dependency policy and library choices | Accepted (2026-11-23) | Partly in place; the rest planned, phases 1 to 3 |
 | [0005](0005-untrusted-email-content.md) | Untrusted email content handling | Accepted (2026-11-23) | Planned, phases 1 and 3 |
-| [0006](0006-credentials-in-macos-keychain.md) | Credentials only in the macOS Keychain, fail closed | Accepted (2026-11-23) | Planned, phases 1 to 3 |
+| [0006](0006-credentials-in-os-credential-store.md) | Credentials only in the OS credential store (macOS Keychain first), fail closed | Accepted (2026-11-23) | Planned, phases 1 to 3 |
 | [0007](0007-supply-chain-posture.md) | Supply-chain posture for CI and releases | Accepted (2026-11-23) | Partly in place; the rest planned, phase 4 |
 | [0008](0008-blocking-http-client.md) | Blocking HTTP client; tokio only as the MCP runtime | Accepted (2026-11-23) | Planned, phases 1 and 3 |
 | [0009](0009-stdio-only-transport.md) | MCP over stdio only, no network-exposed endpoint | Accepted (2026-11-23) | Planned, phases 2 and 3 |
 | [0010](0010-agent-instruction-files.md) | Agent instruction files stay short and shared | Accepted (2026-11-23) | In place |
+| [0011](0011-private-for-now.md) | Private for now; public-only checks are skipped, not removed | Accepted (2026-11-23) | In place |
+| [0012](0012-ci-on-linux.md) | CI runs on Linux; platform-specific code gets narrow jobs | Accepted (2026-11-23) | Partly in place; the rest planned, phase 2 |

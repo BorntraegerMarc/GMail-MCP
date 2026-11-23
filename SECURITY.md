@@ -30,6 +30,6 @@ In scope, because they break the project's stated guarantees:
 Out of scope:
 
 - Prompt injection as a general class. The wrapping reduces the risk but cannot eliminate it; this limit is documented in the README.
-- Vulnerabilities in Google services, in macOS, or in an AI client.
+- Vulnerabilities in Google services, in your operating system, or in an AI client.
 - Vulnerabilities in a dependency that are already published as RustSec advisories (Dependabot and `cargo deny` track these); please report them upstream.
-- Issues that need an attacker who already controls your user account or your Keychain.
+- Issues that need an attacker who already controls your user account or your credential store (for example the macOS Keychain).

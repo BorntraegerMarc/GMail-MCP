@@ -38,7 +38,11 @@ jobs:
 
   codeql:
     name: CodeQL (${{ matrix.language }})
-    if: github.event_name != 'schedule' || github.event.schedule == '43 5 * * 1'
+    # Code scanning needs GitHub Code Security on a private repository, so CodeQL runs only
+    # while the repository is public (ADR 0011).
+    if: >-
+      (github.event_name != 'schedule' || github.event.schedule == '43 5 * * 1') &&
+      github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:

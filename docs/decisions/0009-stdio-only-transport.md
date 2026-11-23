@@ -26,5 +26,5 @@ A remote use case whose threat model (authentication, transport security, bindin
 
 ## References
 
-- [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md), [0006-credentials-in-macos-keychain.md](0006-credentials-in-macos-keychain.md)
+- [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md), [0006-credentials-in-os-credential-store.md](0006-credentials-in-os-credential-store.md)
 - [Cargo.toml](../../Cargo.toml) (lints)

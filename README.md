@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **A secure, minimal Gmail MCP server in Rust for personal Gmail accounts, while Google's official one is gated.**
-Search and read your mail from Claude, optionally create drafts, and nothing else: no send, no delete, no settings, no telemetry. Credentials stay in the macOS Keychain.
+Search and read your mail from Claude, optionally create drafts, and nothing else: no send, no delete, no settings, no telemetry. Credentials stay in your operating system's credential store (the macOS Keychain today).
 
 > **Status: early development.** This repository currently contains the project scaffold only. The server lands phase by phase, one reviewable pull request each; progress is in [CHANGELOG.md](CHANGELOG.md).
 >
@@ -40,7 +40,7 @@ Five tools, exactly these, and no others:
 | Threat | Mitigation |
 |---|---|
 | Supply chain | A short list of direct dependencies (about ten planned), all official or very widely used, though the full tree is larger (161 crates measured for the planned set; see [ADR 0004](docs/decisions/0004-dependency-policy-and-libraries.md)); exact pins, `Cargo.lock` committed, `cargo-deny` policy, Dependabot with cooldown, every GitHub Action pinned to a commit SHA, build-provenance attestation on releases |
-| Credential theft | Tokens and client secret only in the macOS Keychain; no token or secret files; never logged; fails closed if the Keychain is unavailable |
+| Credential theft | Tokens and client secret only in the OS credential store (the macOS Keychain today); no token or secret files; never logged; fails closed if the store is unavailable |
 | Prompt injection via email | No tool can send, delete or change settings; worst case is a draft you see before anything is sent. Email content is wrapped in per-call random delimiters, sanitised, and labelled as data |
 | Silent exfiltration by the server | One audited egress function allows only `oauth2.googleapis.com` and `gmail.googleapis.com`, with a fixed method and path allowlist; static tests fail on anything else; no telemetry |
 
@@ -50,7 +50,7 @@ Five tools, exactly these, and no others:
 - Wrapping email content as untrusted data **reduces** prompt-injection risk; it does **not** eliminate it. An assistant that reads a hostile email while also holding other tools (web fetch, other MCP servers) can still be manipulated into leaking data through those tools, which this server cannot prevent.
 - A locally built binary is ad-hoc signed, so macOS may ask for Keychain access again after a rebuild.
 - An OAuth app in "Testing" mode has refresh tokens that expire after 7 days. Publishing the consent screen as "In production" (unverified, single user) avoids that, at the cost of Google's unverified-app warning screen and a 100-user cap.
-- macOS only.
+- **Platforms:** secret storage is implemented for macOS only (the Keychain). Linux and Windows are TODO: until a secure store exists there, the server starts but every tool call fails closed, and it never falls back to a file.
 
 ## Development
 
