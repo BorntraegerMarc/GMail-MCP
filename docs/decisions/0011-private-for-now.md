@@ -1,11 +1,11 @@
 # 0011. Private for now; public-only checks are skipped, not removed
 
 - Status: Accepted (2026-11-23)
-- Implementation: In place: a `github.event.repository.private == false` condition on the dependency-review job (`ci.yml`), the CodeQL job (`security.yml`), the Scorecard job (`scorecard.yml`) and the attestation step (`release.yml`). Not yet exercised: no workflow has run at all, and none has run on a public repository.
+- Implementation: In place: a `github.event.repository.private == false` condition on the dependency-review job (`ci.yml`), the CodeQL job (`security.yml`), the Scorecard job (`scorecard.yml`) and the attestation step (`release.yml`). Exercised once: the first pull-request run (2026-11-23) came while the repository was private, and those jobs were skipped as designed. The repository was then made public again, so they run from the next workflow run on and have never run before.
 
 ## Context
 
-The maintainer made the repository private on 2026-11-23 for the time being. Making it open source later is possible but has no date. The pipeline in 0007 was designed for a public repository, and parts of it rely on GitHub features that are free for public repositories and sold separately, or not offered, for private ones. According to the GitHub documentation read on 2026-11-23:
+The maintainer made the repository private on 2026-11-23 for the time being, and made it public again later the same day. The conditions below stay in place so the pipeline also works whenever the repository is private. The pipeline in 0007 was designed for a public repository, and parts of it rely on GitHub features that are free for public repositories and sold separately, or not offered, for private ones. According to the GitHub documentation read on 2026-11-23:
 
 - Dependency review on a private repository needs GitHub Code Security or GitHub Advanced Security.
 - The Scorecard action supports a private repository only with GitHub Advanced Security. CodeQL code scanning is documented as available for all public repositories; the private-repository terms were not checked.
