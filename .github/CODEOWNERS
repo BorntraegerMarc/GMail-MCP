@@ -1,0 +1,15 @@
+# Everything is owned by the maintainer. The security-critical paths are listed
+# explicitly so the intent survives future additions of co-maintainers.
+*                         @BorntraegerMarc
+
+/.github/                 @BorntraegerMarc
+/deny.toml                @BorntraegerMarc
+/Cargo.toml               @BorntraegerMarc
+/Cargo.lock               @BorntraegerMarc
+/src/http.rs              @BorntraegerMarc
+/src/policy.rs            @BorntraegerMarc
+/src/auth.rs              @BorntraegerMarc
+/src/keychain.rs          @BorntraegerMarc
+/src/draft.rs             @BorntraegerMarc
+/src/tools.rs             @BorntraegerMarc
+/tests/                   @BorntraegerMarc

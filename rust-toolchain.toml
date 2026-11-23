@@ -1,0 +1,6 @@
+# Pinned for reproducible builds. Dependabot cannot bump this file: update it by hand
+# about once a quarter (see docs/maintainers/releasing.md) and keep CI green.
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]

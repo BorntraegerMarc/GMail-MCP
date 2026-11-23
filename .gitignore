@@ -1,0 +1,21 @@
+# Build output
+/target/
+
+# macOS
+.DS_Store
+
+# Secrets must never be committed. Credentials live in the macOS Keychain only,
+# so none of these should ever exist inside the project directory.
+credentials.json
+client_secret*.json
+token.json
+tokens.json
+*.pem
+*.p12
+.env
+.env.*
+
+# Local tooling
+.idea/
+.vscode/
+*.log
