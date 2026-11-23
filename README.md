@@ -58,6 +58,7 @@ Five tools, exactly these, and no others:
 cargo fmt --all --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
+RUSTDOCFLAGS='-D warnings' cargo doc --locked --no-deps
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the dependency policy and the rules about what may never be added, [SECURITY.md](SECURITY.md) to report a vulnerability privately, [docs/decisions/](docs/decisions/) for why the design is the way it is, and [docs/maintainers/releasing.md](docs/maintainers/releasing.md) for the release process.
