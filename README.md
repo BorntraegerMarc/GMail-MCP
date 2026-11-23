@@ -28,7 +28,7 @@ Five tools, exactly these, and no others:
 | `get_message` | no | One message; attachments are metadata only, never downloaded |
 | `create_draft` | **yes** | Creates a draft. It is **not sent**; you review and send it yourself in Gmail |
 
-**Deliberately not implemented, and never will be:** send, forward, reply-send, delete, trash, spam, label changes, filters, settings.
+**Deliberately not implemented, and never will be:** send (reply-send included), forward, delete, trash, untrash, spam, label changes, filters, settings.
 
 ### Two layers of permission
 
@@ -39,7 +39,7 @@ Five tools, exactly these, and no others:
 
 | Threat | Mitigation |
 |---|---|
-| Supply chain | Few dependencies, all official or very widely used; exact pins, `Cargo.lock` committed, `cargo-deny` policy, Dependabot with cooldown, every GitHub Action pinned to a commit SHA, build-provenance attestation on releases |
+| Supply chain | A short list of direct dependencies (about ten planned), all official or very widely used, though the full tree is larger (161 crates measured for the planned set; see [ADR 0004](docs/decisions/0004-dependency-policy-and-libraries.md)); exact pins, `Cargo.lock` committed, `cargo-deny` policy, Dependabot with cooldown, every GitHub Action pinned to a commit SHA, build-provenance attestation on releases |
 | Credential theft | Tokens and client secret only in the macOS Keychain; no token or secret files; never logged; fails closed if the Keychain is unavailable |
 | Prompt injection via email | No tool can send, delete or change settings; worst case is a draft you see before anything is sent. Email content is wrapped in per-call random delimiters, sanitised, and labelled as data |
 | Silent exfiltration by the server | One audited egress function allows only `oauth2.googleapis.com` and `gmail.googleapis.com`, with a fixed method and path allowlist; static tests fail on anything else; no telemetry |
@@ -60,7 +60,7 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the dependency policy and the rules about what may never be added, [SECURITY.md](SECURITY.md) to report a vulnerability privately, and [docs/maintainers/releasing.md](docs/maintainers/releasing.md) for the release process.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the dependency policy and the rules about what may never be added, [SECURITY.md](SECURITY.md) to report a vulnerability privately, [docs/decisions/](docs/decisions/) for why the design is the way it is, and [docs/maintainers/releasing.md](docs/maintainers/releasing.md) for the release process.
 
 ## License
 

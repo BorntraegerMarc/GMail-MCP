@@ -19,7 +19,7 @@ This is a one-person, spare-time project. You can expect an acknowledgement with
 
 In scope, because they break the project's stated guarantees:
 
-- Any way to make the server send, forward, delete, trash, label, or change settings or filters in Gmail.
+- Any way to make the server send (reply-send included), forward, delete, trash, untrash, mark as spam, label, or change settings or filters in Gmail.
 - Any way to make the server contact a host other than the allowlisted Google hosts, or to bypass the single egress guard.
 - Any way to read, log, or leak OAuth tokens, client secrets, email content, subjects or recipients (including via logs, stdout, error messages or files on disk).
 - Header injection or other malformed output in created drafts.

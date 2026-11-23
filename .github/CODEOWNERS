@@ -12,4 +12,10 @@
 /src/keychain.rs          @BorntraegerMarc
 /src/draft.rs             @BorntraegerMarc
 /src/tools.rs             @BorntraegerMarc
+/src/text.rs              @BorntraegerMarc
+/src/log.rs               @BorntraegerMarc
+/clippy.toml              @BorntraegerMarc
 /tests/                   @BorntraegerMarc
+/AGENTS.md                @BorntraegerMarc
+/CLAUDE.md                @BorntraegerMarc
+/docs/decisions/          @BorntraegerMarc

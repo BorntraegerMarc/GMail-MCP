@@ -10,4 +10,5 @@ All notable changes are recorded here. The format follows
 
 - Repository scaffold: stub crate, CI (fmt, clippy, tests, MSRV, docs, cargo-deny, zizmor,
   dependency review), CodeQL, OpenSSF Scorecard, release workflow with build-provenance
-  attestation, Dependabot, security policy and contribution guide.
+  attestation, Dependabot, security policy, contribution guide, agent instructions
+  (`AGENTS.md`, imported by `CLAUDE.md`) and decision records in `docs/decisions/`.

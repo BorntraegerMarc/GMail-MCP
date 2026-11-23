@@ -16,6 +16,7 @@ tokens.json
 .env.*
 
 # Local tooling
+CLAUDE.local.md
 .idea/
 .vscode/
 *.log

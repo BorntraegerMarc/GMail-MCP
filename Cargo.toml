@@ -2,8 +2,8 @@
 name = "gmail-mcp"
 version = "0.0.0"
 edition = "2024"
-# 1.89 is the highest `rust-version` declared in the dependency tree (uuid, via rmcp).
-# CI builds with exactly this toolchain in the `msrv` job.
+# 1.89 is the highest `rust-version` in the planned dependency tree (measured 2026-11-23:
+# uuid, via rmcp). CI builds with exactly this toolchain in the `msrv` job.
 rust-version = "1.89"
 description = "Secure, minimal, unofficial Gmail MCP server: read mail, optionally create drafts, credentials in the macOS Keychain"
 license = "MIT"
@@ -18,6 +18,7 @@ publish = false
 # official or very widely used crates only, exact `=` pins, Cargo.lock committed.
 
 [lints.rust]
+# This crate needs no unsafe code; platform FFI (the macOS Keychain) lives in a dependency.
 unsafe_code = "forbid"
 
 [lints.clippy]
@@ -37,6 +38,8 @@ unimplemented = "deny"
 opt-level = 3
 lto = "fat"
 codegen-units = 1
+# A panic or an arithmetic overflow on hostile input must stop the process, not let it
+# continue with corrupted state.
 panic = "abort"
 strip = "symbols"
 overflow-checks = true

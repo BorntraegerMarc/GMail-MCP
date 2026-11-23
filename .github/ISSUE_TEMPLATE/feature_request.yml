@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        This project is deliberately small. It **will not** add sending, forwarding, deleting, trashing,
+        This project is deliberately small. It **will not** add sending (including reply-send), forwarding, deleting, trashing, untrashing,
         spam handling, filters, settings, or label changes, and requests for them will be closed.
         Read-side improvements, better safety checks and clearer documentation are welcome.
   - type: textarea

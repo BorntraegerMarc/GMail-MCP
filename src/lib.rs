@@ -1,7 +1,7 @@
 //! Secure, minimal, unofficial Gmail MCP server.
 //!
 //! This is the Phase 0 scaffold: the implementation lands in later pull requests,
-//! one reviewable phase at a time (see CONTRIBUTING.md).
+//! one reviewable phase at a time (the phases are listed in docs/decisions/README.md).
 
 /// Crate version, as declared in `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

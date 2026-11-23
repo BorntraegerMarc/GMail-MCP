@@ -1,5 +1,6 @@
-# Pinned for reproducible builds. Dependabot cannot bump this file: update it by hand
-# about once a quarter (see docs/maintainers/releasing.md) and keep CI green.
+# Pinned so a new compiler release cannot change CI or release builds without a reviewed
+# commit. Dependabot proposes bumps (rust-toolchain ecosystem in .github/dependabot.yml);
+# review them like any dependency update.
 [toolchain]
 channel = "1.99.0"
 profile = "minimal"

@@ -19,6 +19,21 @@ updates:
     commit-message:
       prefix: deps
 
+  # Keeps the exact toolchain pin in rust-toolchain.toml current (version updates only,
+  # never security updates). Each bump is a PR that CI builds and a human merges. The
+  # cooldown is configured for when it takes effect: Dependabot currently ignores it for
+  # this ecosystem (dependabot/dependabot-core#16940).
+  - package-ecosystem: rust-toolchain
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    cooldown:
+      default-days: 5
+    commit-message:
+      prefix: ci
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

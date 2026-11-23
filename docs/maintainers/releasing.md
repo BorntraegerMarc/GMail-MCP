@@ -29,9 +29,10 @@ gh attestation verify gmail-mcp-X.Y.Z-macos-universal.tar.gz --repo BorntraegerM
 shasum -a 256 -c SHA256SUMS
 ```
 
-The README recommends building from source for anyone who wants to audit first. Release binaries are ad-hoc signed and not notarized, so macOS may ask for Keychain access again after an update.
+The full README (planned, phase 4) will recommend building from source for anyone who wants to audit first. Release binaries are not signed with an identity and not notarized; at most the linker's automatic ad-hoc signature is present (checked on 2026-11-23 for the arm64 slice only). macOS may therefore ask for Keychain access again after an update; that is an expectation, not something verified.
 
-## Quarterly chores
+## Recurring chores
 
-- Bump `channel` in `rust-toolchain.toml` to the current stable (Dependabot cannot do this), run the full checks, and check `rust-version` still matches the highest requirement in the dependency tree.
+- Review Dependabot's `rust-toolchain` PRs (they bump `channel` in `rust-toolchain.toml`; version updates only, and Dependabot currently ignores the cooldown for this ecosystem).
+- After merging a Dependabot Cargo PR, check that `rust-version` in `Cargo.toml` still matches the highest requirement in the dependency tree; an update can raise it.
 - Skim open Dependabot PRs and the Security tab.

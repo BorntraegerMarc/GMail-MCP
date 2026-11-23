@@ -4,10 +4,10 @@ Thanks for helping. This project's value is that it is **small and hard to abuse
 
 ## Ground rules
 
-1. **No new write capability, ever.** The server must never send, forward, delete, trash, mark as spam, change labels, filters or settings. The only Gmail write is creating a draft, and only when started with `--allow-drafts`. Pull requests that add any of these will be closed.
-2. **Any change to what the server can do needs a security note** in the PR: a new tool or tool parameter, Gmail endpoint, HTTP method, OAuth scope, or allowed host. It must update the egress allowlist, `tests/static_policy.rs` and the README threat model in the same PR.
-3. **Secrets never enter the repo or the logs.** No tokens, client secrets, real email content or addresses in code, tests, fixtures, issues or PRs.
-4. **No panics on untrusted input.** Production code does not `unwrap`/`expect`; clippy enforces this. Email content, headers and API responses are untrusted.
+1. **No new write capability, ever.** The server must never send (reply-send included), forward, delete, trash, untrash, mark as spam, create, change or apply labels, or change filters or settings. The only Gmail write is creating a draft, and only when started with `--allow-drafts`. Pull requests that add any of these will be closed.
+2. **Any change to what the server can do needs a security note** in the PR: a new tool or tool parameter, Gmail endpoint, HTTP method, OAuth scope, or allowed host. It must update the egress allowlist, `tests/static_policy.rs` and the README security table in the same PR.
+3. **Secrets never enter the repo or the logs.** No tokens, client secrets, real email content or addresses in code, tests, fixtures, docs, issues or PRs, and no local usernames or home-directory paths in docs or examples (use placeholders).
+4. **No panics on untrusted input.** Email content, headers and API responses are untrusted. Clippy denies `unwrap` and `expect` in production code, but it does not flag indexing, slicing, arithmetic or `panic!`, so return an error instead; a panic aborts the server (release builds set `panic = "abort"`).
 5. **stdout belongs to the MCP protocol.** Nothing prints to stdout. All logging goes through one module to stderr and never contains tokens, subjects, bodies or addresses.
 
 ## Dependency policy
@@ -23,7 +23,7 @@ A new direct dependency must be:
 
 ## Security-critical files
 
-Review these with extra care, and expect extra scrutiny of changes to them: `src/http.rs` (the only network egress), `src/policy.rs`, `src/auth.rs`, `src/keychain.rs`, `src/draft.rs`, `src/tools.rs`, `deny.toml`, `.github/workflows/`, and everything under `tests/`.
+Review these with extra care, and expect extra scrutiny of changes to them: `src/http.rs` (the only network egress), `src/policy.rs`, `src/auth.rs`, `src/keychain.rs`, `src/draft.rs`, `src/text.rs`, `src/tools.rs`, `src/log.rs`, `deny.toml`, `clippy.toml`, the `[lints]` tables in `Cargo.toml`, `.github/workflows/`, everything under `tests/`, and `AGENTS.md` and `CLAUDE.md` (they steer other contributors' coding agents).
 
 ## Local checks
 
@@ -35,6 +35,15 @@ cargo deny check bans licenses sources    # optional locally: brew install cargo
 ```
 
 CI runs the same checks plus MSRV, docs, `zizmor` (workflow security lint), dependency review, CodeQL and OpenSSF Scorecard.
+
+## Comments and decisions
+
+- Comments explain **why**: a constraint, a security reason, a trade-off, a surprising behavior. The code is the **how**; do not narrate it.
+- Guards, limits and allowlist entries say why they exist, so nobody "simplifies" them away. They may point to the decision with a `// why: docs/decisions/NNNN-title.md` comment.
+- Rustdoc on public items states the contract (what it does, when it errors), not the implementation.
+- Regression tests are named after the attack they pin.
+- Design decisions are recorded as short ADRs in [docs/decisions/](docs/decisions/). Changing a decision means adding or superseding an ADR in the same PR, and a PR that lands work an ADR lists as planned updates that ADR's Implementation line and its row in the index.
+- Coding agents get their instructions from [AGENTS.md](AGENTS.md).
 
 ## Pull requests
 
