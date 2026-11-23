@@ -1,0 +1,50 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste email contents, subjects, addresses, OAuth tokens, client secrets or authorization codes.**
+        Vulnerabilities go through a [private report](https://github.com/BorntraegerMarc/GMail-MCP/security/advisories/new), not an issue.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: gmail-mcp version
+      description: Output of `gmail-mcp --version`, or the commit you built.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and architecture
+      placeholder: macOS 15, Apple silicon, or Ubuntu 24.04, x86-64
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Mode
+      options:
+        - read-only (default)
+        - drafts (--allow-drafts)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant stderr output
+      description: The server logs only static messages, but check there is nothing sensitive before pasting.
+      render: text

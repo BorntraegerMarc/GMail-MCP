@@ -1,0 +1,66 @@
+name: Security
+
+# CodeQL on every PR commit and main, plus weekly. RustSec advisories run daily,
+# on a schedule rather than on PRs, so a new advisory cannot block unrelated work.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 5 * * *" # daily: advisories
+    - cron: "43 5 * * 1" # weekly (Monday): CodeQL
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: security-${{ github.event.pull_request.number || github.ref }}-${{ github.event.schedule || github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  advisories:
+    name: cargo-deny advisories (RustSec)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'schedule' && github.event.schedule == '17 5 * * *')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: EmbarkStudios/cargo-deny-action@17aeb3c839e42274e2b8adf721c8c65edfdc74dd # v2.1.3
+        with:
+          command: check
+          command-arguments: advisories
+
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    # Code scanning needs GitHub Code Security on a private repository, so CodeQL runs only
+    # while the repository is public (ADR 0011).
+    if: >-
+      (github.event_name != 'schedule' || github.event.schedule == '43 5 * * 1') &&
+      github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # `actions` analyses the workflow files themselves (script injection etc.).
+        language: [rust, actions]
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+      - uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        with:
+          category: /language:${{ matrix.language }}

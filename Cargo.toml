@@ -1,0 +1,45 @@
+[package]
+name = "gmail-mcp"
+version = "0.0.0"
+edition = "2024"
+# 1.89 is the highest `rust-version` in the planned dependency tree (measured 2026-11-23:
+# uuid, via rmcp). CI builds with exactly this toolchain in the `msrv` job.
+rust-version = "1.89"
+description = "Secure, minimal, unofficial Gmail MCP server: read mail, optionally create drafts, credentials in the OS credential store (macOS Keychain first)"
+license = "MIT"
+repository = "https://github.com/BorntraegerMarc/GMail-MCP"
+readme = "README.md"
+keywords = ["mcp", "gmail", "oauth2", "security", "claude"]
+categories = ["command-line-utilities"]
+# Never published to crates.io: distribution is source + attested GitHub releases.
+publish = false
+
+# Dependencies arrive in the PRs that use them. Policy (see CONTRIBUTING.md):
+# official or very widely used crates only, exact `=` pins, Cargo.lock committed.
+
+[lints.rust]
+# This crate needs no unsafe code; platform FFI (such as the macOS Keychain) lives in a dependency.
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# stdout belongs to the MCP protocol; stderr goes through one audited logging module.
+print_stdout = "deny"
+print_stderr = "deny"
+dbg_macro = "deny"
+# No panics on untrusted input.
+unwrap_used = "deny"
+expect_used = "deny"
+todo = "deny"
+unimplemented = "deny"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+# A panic or an arithmetic overflow on hostile input must stop the process, not let it
+# continue with corrupted state.
+panic = "abort"
+strip = "symbols"
+overflow-checks = true

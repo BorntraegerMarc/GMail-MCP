@@ -1,0 +1,29 @@
+name: Feature request
+description: Suggest an improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project is deliberately small. It **will not** add sending (including reply-send), forwarding, deleting, trashing, untrashing,
+        spam handling, filters, settings, or label changes, and requests for them will be closed.
+        Read-side improvements, better safety checks and clearer documentation are welcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security impact
+      description: Would this add a Gmail endpoint, HTTP method, OAuth scope, host, tool, or dependency?
+    validations:
+      required: true

@@ -1,0 +1,7 @@
+# Pinned so a new compiler release cannot change CI or release builds without a reviewed
+# commit. Dependabot proposes bumps (rust-toolchain ecosystem in .github/dependabot.yml);
+# review them like any dependency update.
+[toolchain]
+channel = "1.99.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
