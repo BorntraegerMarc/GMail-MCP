@@ -200,7 +200,8 @@ jobs:
           # No rename detection, so a moved file lists its old path too.
           changed="$(git diff --name-only --no-renames "$BASE...$HEAD")"
           echo "Changed files:"
-          echo "$changed"
+          # Indented, so that a file name cannot start a workflow command (a line that begins with `::`).
+          printf '%s\n' "$changed" | sed 's/^/    /'
           # The store, the code that uses it (a type that is Copy on Linux may not be on macOS),
           # its test, the manifests, the lints, the toolchain pin and this workflow.
           if grep -Eq '^(src/store(/|\.rs$)|src/auth\.rs$|tests/(keychain_macos|store_policy)\.rs$|Cargo\.(toml|lock)$|clippy\.toml$|rust-toolchain\.toml$|\.github/workflows/ci\.yml$)' <<< "$changed"; then
