@@ -7,9 +7,12 @@
 //! because a file would put a plaintext copy of the secrets back on disk. Access tokens are
 //! never stored: they stay in memory.
 //!
-//! A [`Credentials`] value cannot hold a grant that is broader than read-only. The scope is
-//! checked when the value is built, so neither a sign-in nor a damaged or tampered store item
-//! can produce credentials that reach more than Google allows `gmail.readonly` to reach.
+//! A [`Credentials`] value is built only from a grant whose scope is exactly read-only, and a
+//! stored record must say so as well. What is checked on load is that label, which `auth`
+//! wrote: a record that another program of the same user wrote with a valid label is accepted
+//! (duplicate keys resolve to the last one). What bounds the server then is Google's scope on
+//! the token and the egress allowlist, not the record; an attacker who controls the user's
+//! account or the store is out of scope (SECURITY.md).
 // why: docs/decisions/0006-credentials-in-os-credential-store.md,
 // docs/decisions/0014-read-only-no-composing.md
 
@@ -196,8 +199,9 @@ impl Credentials {
     /// Reads a record written by [`Credentials::encode`].
     ///
     /// The record is strict: the right version, exactly the five keys, and the scope check
-    /// of [`Credentials::new`]. A store item that was edited, damaged or written by another
-    /// program does not become credentials.
+    /// of [`Credentials::new`] on the record's own scope list. A store item that was damaged,
+    /// edited into something else or written by another version does not become credentials;
+    /// a well-formed record with a valid label does, whoever wrote it.
     ///
     /// # Errors
     ///

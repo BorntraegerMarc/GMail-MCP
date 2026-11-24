@@ -370,7 +370,9 @@ fn the_only_oauth_scope_is_readonly() {
     }
 }
 
-/// Every URL written out in the source names an allowlisted host, over https. The scope URL
+/// Every URL written out in the source as a literal names an allowlisted host, over https. An
+/// address assembled at run time (`format!`, `concat!`) is not seen; the listener's redirect
+/// address is one, and its host is pinned by the bind check below instead. The scope URL
 /// names `www.googleapis.com`, but only as an identifier, never as a place to connect to. The
 /// consent page is the one other address: the user's browser opens it, the code never does,
 /// and it may be written only in `policy.rs`, where the egress guard also refuses it.
@@ -584,7 +586,14 @@ fn no_logger_or_tracing_subscriber_is_installed() {
 /// generated at build time, would escape them, so neither is allowed.
 #[test]
 fn no_code_is_pulled_in_from_outside_the_scanned_files() {
-    const INCLUDES: &[&str] = &["#[path", "include!", "include_str!", "include_bytes!"];
+    // `cfg_attr(.., path = ..)` is `#[path]` in disguise.
+    const INCLUDES: &[&str] = &[
+        "#[path",
+        "cfg_attr",
+        "include!",
+        "include_str!",
+        "include_bytes!",
+    ];
     let files = sources();
     let hits = find(&files, INCLUDES);
     assert!(hits.is_empty(), "code included from elsewhere: {hits:?}");
@@ -640,5 +649,34 @@ fn the_sign_in_shows_the_consent_address_through_the_logger() {
     assert!(
         auth.code.contains("&log::consent_url"),
         "auth::run must pass log::consent_url as the announcer"
+    );
+}
+
+/// The README promises that no token or secret file is written, and `auth` promises that it
+/// never deletes the user's client secret file. Nothing in `src/` creates, writes, copies,
+/// renames or removes a file or folder; reading the client secret file is all it does.
+#[test]
+fn nothing_writes_or_deletes_a_file() {
+    const FILE_WRITES: &[&str] = &[
+        "File::create",
+        "create_new",
+        "OpenOptions",
+        "fs::write",
+        "fs::copy",
+        "fs::rename",
+        "fs::remove",
+        "remove_file",
+        "remove_dir",
+        "create_dir",
+        "set_permissions",
+        "hard_link",
+        "symlink",
+        "write_all_at",
+    ];
+    let files = sources();
+    let hits = find(&files, FILE_WRITES);
+    assert!(
+        hits.is_empty(),
+        "file writes or deletions in the source: {hits:?}"
     );
 }

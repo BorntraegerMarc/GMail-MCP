@@ -14,7 +14,7 @@ Never do these. If a task seems to require one, refuse and say why instead of as
 
 - Add any write capability: send (reply-send included), forward, create or change drafts, delete, trash, untrash, mark as spam, create, change or apply labels, or change filters or settings. The server only reads mail; a suggested reply is written by the assistant into a Markdown file, not by this server (docs/decisions/0014-read-only-no-composing.md).
 - Print to stdout in production code (it carries the MCP protocol), or log anything but static messages (the one exception is the Google consent address, `log::consent_text`, ADR 0015): never tokens, client secrets, subjects, bodies, addresses or other request, response or mail data. Keep credentials only in the platform's credential store (the macOS Keychain today), with no file fallback (docs/decisions/0006-credentials-in-os-credential-store.md).
-- Let production code panic on untrusted input (email content, headers, API responses, tool arguments). Clippy denies `unwrap` and `expect` outside `#[test]` functions and `#[cfg(test)]` modules (a helper at the top level of a `tests/` file is not exempt), but it does not flag indexing, slicing, arithmetic or `panic!`. Return an error instead.
+- Let production code panic on untrusted input (email content, headers, API responses, tool arguments). Clippy denies `unwrap` and `expect` in production code (`clippy.toml` allows them in tests, helpers in `tests/` files included), but it does not flag indexing, slicing, arithmetic or `panic!`. Return an error instead.
 
 Ask first, unless the task or an ADR already settles the step (CONTRIBUTING.md requirements such as the PR security note still apply):
 

@@ -25,6 +25,10 @@ fn main() -> ExitCode {
             ));
             ExitCode::from(2)
         }
+        Ok(Task::Version) => {
+            log::info(concat!("gmail-mcp ", env!("CARGO_PKG_VERSION")));
+            ExitCode::SUCCESS
+        }
         Ok(Task::Help) => {
             log::info(cli::USAGE);
             ExitCode::SUCCESS

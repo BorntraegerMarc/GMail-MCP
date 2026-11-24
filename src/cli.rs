@@ -8,7 +8,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 /// The usage text, shown on a request for help and after a mistake.
-pub const USAGE: &str = "usage: gmail-mcp [serve] | gmail-mcp auth [--credentials <client_secret.json>] | gmail-mcp --help";
+pub const USAGE: &str = "usage: gmail-mcp [serve] | gmail-mcp auth [--credentials <client_secret.json>] | gmail-mcp --version | gmail-mcp --help";
 
 /// What the binary was asked to do.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -20,6 +20,8 @@ pub enum Task {
     Auth { credentials: Option<PathBuf> },
     /// Show the usage text.
     Help,
+    /// Show the version, for bug reports.
+    Version,
 }
 
 /// Why the arguments were not understood. Every message is static.
@@ -60,7 +62,8 @@ impl std::error::Error for UsageError {}
 ///
 /// # Errors
 ///
-/// [`UsageError`] for anything that is not `serve`, `auth [--credentials <file>]` or `--help`.
+/// [`UsageError`] for anything that is not `serve`, `auth [--credentials <file>]`, `--version`
+/// or `--help`.
 pub fn parse<I: IntoIterator<Item = OsString>>(args: I) -> Result<Task, UsageError> {
     let mut args = args.into_iter();
     let Some(first) = args.next() else {
@@ -69,6 +72,7 @@ pub fn parse<I: IntoIterator<Item = OsString>>(args: I) -> Result<Task, UsageErr
     match first.to_str() {
         Some("serve") => no_more(args, Task::Serve),
         Some("--help" | "-h" | "help") => no_more(args, Task::Help),
+        Some("--version" | "-V") => no_more(args, Task::Version),
         Some("auth") => {
             let mut credentials = None;
             while let Some(argument) = args.next() {
@@ -124,6 +128,17 @@ mod tests {
         for word in ["--help", "-h", "help"] {
             assert_eq!(parse_strs(&[word]), Ok(Task::Help));
         }
+    }
+
+    #[test]
+    fn the_version_is_recognised() {
+        for word in ["--version", "-V"] {
+            assert_eq!(parse_strs(&[word]), Ok(Task::Version));
+        }
+        assert_eq!(
+            parse_strs(&["--version", "x"]),
+            Err(UsageError::UnexpectedArgument)
+        );
     }
 
     #[test]

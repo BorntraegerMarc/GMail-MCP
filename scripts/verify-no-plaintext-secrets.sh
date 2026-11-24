@@ -99,6 +99,7 @@ done
 if [ "$found" -ne 0 ]; then
   echo "Review the files above. Delete the ones you do not need, starting with a downloaded"
   echo "client secret file: gmail-mcp auth has already copied what it needs to the credential store."
+  echo "A file deleted in Finder is in the Trash, which this script does not read: empty it."
   if [ "$unread" -ne 0 ]; then
     echo "Some places could not be read (see above), so this list may be incomplete."
   fi

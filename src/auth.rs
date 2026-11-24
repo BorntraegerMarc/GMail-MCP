@@ -96,7 +96,9 @@ impl Error {
             }
             Error::Listener => "the local sign-in listener on 127.0.0.1 could not be used",
             Error::Setup => "the sign-in could not be set up",
-            Error::TimedOut => "no sign-in arrived in time; run auth again",
+            Error::TimedOut => {
+                "no sign-in arrived in time (Google sends no redirect when its page shows an error, for example for an account that is not a test user of the OAuth client); run auth again"
+            }
             Error::Declined => "access was declined on the Google consent page",
             Error::Network(error) => error.reason(),
             Error::Refused => {

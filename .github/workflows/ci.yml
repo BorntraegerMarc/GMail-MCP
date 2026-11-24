@@ -241,6 +241,8 @@ jobs:
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: "cargo test --locked --lib store::"
       - run: cargo test --locked --test keychain_macos -- --ignored
+      # The script is for macOS users; its tests need the BSD find and grep that only this job has.
+      - run: cargo test --locked --test secrets_script
       - run: cargo doc --locked --no-deps
         env:
           RUSTDOCFLAGS: -D warnings

@@ -21,7 +21,7 @@ All outbound network I/O goes through one egress function (the guard) in one mod
 - Headers: callers may set only `Authorization`, `Content-Type` and `Accept`. A caller-set `Host` header could aim an allowed address at another site.
 - IDs: message and thread IDs are validated against a strict pattern before they enter a URL, so an ID cannot inject a path such as `../settings/filters` into an allowed shape.
 - OAuth: the OAuth library's traffic passes through the guard too, because we implement its `SyncHttpClient` trait ourselves. Its built-in `ureq` feature would bypass the guard and pulls a second `ureq` major version.
-- Excluded hosts: `www.googleapis.com` (it appears only inside OAuth scope strings) and `accounts.google.com` (only the consent URL the user's browser opens; the code never connects to it). That URL is a constant in `policy.rs`, the one file the source scan lets name the host, and a test pins that the guard refuses it.
+- Excluded hosts: `www.googleapis.com` (it appears only inside OAuth scope strings) and `accounts.google.com` (only the consent URL the user's browser opens; the code never connects to it). That URL is a constant in `policy.rs`; the source scan lets only that file write a URL literal with the host, and a test pins that the guard refuses it.
 
 The OAuth redirect listener in `src/auth.rs` is the one other place allowed to touch sockets: it accepts connections and must never dial out. It binds `127.0.0.1` only, so other machines cannot connect, and rejects a redirect whose `state` it did not issue, because other software on the same machine still can connect.
 

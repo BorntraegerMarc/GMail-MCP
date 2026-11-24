@@ -28,6 +28,19 @@ fn help_succeeds_and_goes_to_stderr() {
     }
 }
 
+#[test]
+fn the_version_goes_to_stderr_for_bug_reports() {
+    for flag in ["--version", "-V"] {
+        let output = run(&[flag]);
+        assert_eq!(output.status.code(), Some(0), "{flag}");
+        assert!(output.stdout.is_empty(), "{flag} wrote to stdout");
+        assert!(
+            stderr(&output).contains(env!("CARGO_PKG_VERSION")),
+            "{flag}"
+        );
+    }
+}
+
 /// `serve` lands in the next phase. Until then it must refuse to run, not look like a working
 /// server that answers nothing.
 #[test]
@@ -68,6 +81,6 @@ fn a_mistake_is_a_usage_error_with_the_usage_text() {
 fn auth_fails_at_once_where_there_is_no_store() {
     let output = run(&["auth", "--credentials", "client_secret.json"]);
     assert_eq!(output.status.code(), Some(1));
-    assert!(output.stdout.is_empty());
+    assert!(output.stdout.is_empty(), "auth wrote to stdout");
     assert!(stderr(&output).contains("no secure credential store exists"));
 }

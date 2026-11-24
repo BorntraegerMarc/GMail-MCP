@@ -37,5 +37,5 @@ body:
     id: logs
     attributes:
       label: Relevant stderr output
-      description: The server logs only static messages, but check there is nothing sensitive before pasting.
+      description: The server logs only static messages, except that `gmail-mcp auth` prints the Google consent address (it holds your OAuth client id and one-time values), so leave that line out. Check there is nothing sensitive before pasting.
       render: text
