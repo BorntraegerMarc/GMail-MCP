@@ -185,7 +185,6 @@ fn the_scan_reads_the_real_source_files() {
         "policy.rs",
         "log.rs",
         "text.rs",
-        "draft.rs",
     ] {
         assert!(
             names.contains(&expected),
@@ -237,8 +236,8 @@ fn the_comment_stripper_removes_prose_and_keeps_literals() {
     }
 }
 
-/// Paths of the Gmail API that send, delete, relabel, reconfigure or download. The route
-/// table has no entry for any of them; this makes sure none sneaks into any other file.
+/// Paths of the Gmail API that send, draft, delete, relabel, reconfigure or download. The
+/// route table has no entry for any of them; this makes sure none sneaks into any other file.
 #[test]
 fn no_forbidden_gmail_endpoint_appears_in_the_source() {
     const FORBIDDEN: &[&str] = &[
@@ -258,6 +257,7 @@ fn no_forbidden_gmail_endpoint_appears_in_the_source() {
         "/watch",
         "/stop",
         "/attachments",
+        "/drafts",
         "/profile",
         "/history",
     ];
@@ -307,11 +307,12 @@ fn no_method_other_than_get_and_post_appears_in_the_source() {
     );
 }
 
-/// The only OAuth scopes are `gmail.readonly` and `gmail.compose`, and no other Google
-/// scope or the full-mailbox host is named anywhere.
+/// The only OAuth scope is `gmail.readonly`. No scope that can create drafts, send or modify,
+/// no other Google scope and not the full-mailbox host is named anywhere.
 #[test]
-fn the_only_oauth_scopes_are_readonly_and_compose() {
+fn the_only_oauth_scope_is_readonly() {
     const FORBIDDEN: &[&str] = &[
+        "gmail.compose",
         "gmail.modify",
         "gmail.send",
         "gmail.settings",
@@ -338,17 +339,17 @@ fn the_only_oauth_scopes_are_readonly_and_compose() {
         for (index, _) in file.code.match_indices("googleapis.com/auth/") {
             let rest = &file.code[index + "googleapis.com/auth/".len()..];
             assert!(
-                rest.starts_with("gmail.readonly\"") || rest.starts_with("gmail.compose\""),
+                rest.starts_with("gmail.readonly\""),
                 "{}: unexpected scope: {}",
                 file.name,
-                &rest[..rest.len().min(40)]
+                rest.chars().take(40).collect::<String>()
             );
         }
     }
 }
 
-/// Every URL written out in the source names an allowlisted host, over https. The two scope
-/// URLs name `www.googleapis.com`, but only as an identifier, never as a place to connect to.
+/// Every URL written out in the source names an allowlisted host, over https. The scope URL
+/// names `www.googleapis.com`, but only as an identifier, never as a place to connect to.
 #[test]
 fn every_url_literal_in_the_source_is_allowlisted() {
     const HOSTS: &[&str] = &["oauth2.googleapis.com", "gmail.googleapis.com"];
@@ -380,9 +381,8 @@ fn every_url_literal_in_the_source_is_allowlisted() {
                 "{}: non-https URL: {scheme}://{host}",
                 file.name
             );
-            let scope_identifier = host == "www.googleapis.com"
-                && (after_host.starts_with("/auth/gmail.readonly\"")
-                    || after_host.starts_with("/auth/gmail.compose\""));
+            let scope_identifier =
+                host == "www.googleapis.com" && after_host.starts_with("/auth/gmail.readonly\"");
             assert!(
                 HOSTS.contains(&host.as_str()) || scope_identifier,
                 "{}: URL with a host that is not allowlisted: {scheme}://{host}",
@@ -399,7 +399,7 @@ fn every_url_literal_in_the_source_is_allowlisted() {
 #[test]
 fn network_and_process_apis_are_confined_to_the_egress_module() {
     const NETWORK: &[&str] = &[
-        "ureq::",
+        "ureq",
         "std::net",
         "tokio::net",
         "TcpStream",
@@ -420,16 +420,7 @@ fn network_and_process_apis_are_confined_to_the_egress_module() {
         "oauth2::ureq",
         "oauth2::curl",
     ];
-    const PROCESS: &[&str] = &["std::process::Command", "process::Command", "Command::new"];
-    const MAIL_TRANSPORT: &[&str] = &[
-        "lettre::transport",
-        "lettre::Transport",
-        "lettre::AsyncTransport",
-        "SmtpTransport",
-        "SendmailTransport",
-        "FileTransport",
-        "StubTransport",
-    ];
+    const PROCESS: &[&str] = &["Command", "std::process::Command"];
 
     let files = sources();
     let outside_egress: Vec<Source> = files
@@ -448,9 +439,73 @@ fn network_and_process_apis_are_confined_to_the_egress_module() {
 
     let hits = find(&files, PROCESS);
     assert!(hits.is_empty(), "process APIs in the source: {hits:?}");
+}
 
-    let hits = find(&files, MAIL_TRANSPORT);
-    assert!(hits.is_empty(), "mail transports in the source: {hits:?}");
+/// The server composes no mail. No crate that builds or sends a message is used, and none of
+/// the types such a crate offers is named. (`lettre` is also banned in `deny.toml`.)
+#[test]
+fn nothing_composes_or_sends_mail() {
+    const MAIL: &[&str] = &[
+        "lettre",
+        "mail_builder",
+        "mail-builder",
+        "mail_send",
+        "mail-send",
+        "SmtpTransport",
+        "SendmailTransport",
+        "MessageBuilder",
+        "Message::builder",
+        "MultiPart",
+        "SinglePart",
+    ];
+    let files = sources();
+    let hits = find(&files, MAIL);
+    assert!(hits.is_empty(), "mail composition in the source: {hits:?}");
+}
+
+/// Dependencies write `log` records (the HTTP client's debug records include request URLs).
+/// No logger is installed, so they go nowhere; installing one would send them to stderr.
+#[test]
+fn no_logger_or_tracing_subscriber_is_installed() {
+    const LOGGERS: &[&str] = &[
+        "env_logger",
+        "tracing_subscriber",
+        "tracing-subscriber",
+        "set_logger",
+        "set_boxed_logger",
+        "set_global_default",
+        "simple_logger",
+        "flexi_logger",
+        "log4rs",
+        "stderrlog",
+        "fern::",
+    ];
+    let files = sources();
+    let hits = find(&files, LOGGERS);
+    assert!(hits.is_empty(), "a logger is installed: {hits:?}");
+}
+
+/// The scans read `src/**/*.rs` as written. Code that is pulled in from somewhere else, or
+/// generated at build time, would escape them, so neither is allowed.
+#[test]
+fn no_code_is_pulled_in_from_outside_the_scanned_files() {
+    const INCLUDES: &[&str] = &["#[path", "include!", "include_str!", "include_bytes!"];
+    let files = sources();
+    let hits = find(&files, INCLUDES);
+    assert!(hits.is_empty(), "code included from elsewhere: {hits:?}");
+
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    assert!(
+        !root.join("build.rs").exists(),
+        "a build script is not allowed"
+    );
+    let manifest = std::fs::read_to_string(root.join("Cargo.toml")).expect("Cargo.toml");
+    assert!(
+        !manifest
+            .lines()
+            .any(|line| line.trim_start().starts_with("build")),
+        "a build script is not allowed"
+    );
 }
 
 /// stdout belongs to the MCP protocol, and logs never carry data. Nothing prints, and the

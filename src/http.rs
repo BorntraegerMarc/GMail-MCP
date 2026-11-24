@@ -13,7 +13,7 @@ use std::fmt;
 use std::time::Duration;
 
 use crate::log;
-use crate::policy::{self, Denied, Mode};
+use crate::policy::{self, Denied};
 
 pub use ureq::http::{Method, Request, Response, header};
 
@@ -64,18 +64,28 @@ impl From<ureq::Error> for Error {
 /// The egress guard: sends a request only if the policy allows it.
 pub struct Egress {
     agent: ureq::Agent,
-    mode: Mode,
+}
+
+impl Default for Egress {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Egress {
-    /// Creates a guard for `mode`. In [`Mode::ReadOnly`] the draft route is refused as well,
-    /// a second server-side layer on top of the OAuth scope.
+    /// Creates the guard.
     #[must_use]
-    pub fn new(mode: Mode) -> Self {
+    pub fn new() -> Self {
         Self {
             agent: build_agent(true, policy::REQUEST_TIMEOUT),
-            mode,
         }
+    }
+
+    /// Whether the client is set to go through a proxy. It never is: the guard ignores the
+    /// proxy variables of the environment. This exists so a test can check exactly that.
+    #[must_use]
+    pub fn uses_proxy(&self) -> bool {
+        self.agent.config().proxy().is_some()
     }
 
     /// Sends `request` and returns the response, whatever its status. A 4xx or 5xx answer
@@ -87,7 +97,7 @@ impl Egress {
     /// the failure of the exchange itself: a redirect, an oversized response, a timeout or
     /// a network error.
     pub fn send(&self, request: Request<Vec<u8>>) -> Result<Response<Vec<u8>>, Error> {
-        if let Err(denied) = check(self.mode, &request) {
+        if let Err(denied) = check(&request) {
             log::warn(denied.reason());
             return Err(Error::Denied(denied));
         }
@@ -96,10 +106,13 @@ impl Egress {
 }
 
 /// The guard's decision for one request: the route table, the header allowlist and the
-/// body cap. The headers are checked here because a caller-set `Host` header could aim an
+/// body rules. The headers are checked here because a caller-set `Host` header could aim an
 /// allowed address at another site.
-fn check(mode: Mode, request: &Request<Vec<u8>>) -> Result<(), Denied> {
-    policy::authorize(mode, request.method().as_str(), &request.uri().to_string())?;
+fn check(request: &Request<Vec<u8>>) -> Result<(), Denied> {
+    policy::authorize(request.method().as_str(), &request.uri().to_string())?;
+    if request.method() == Method::GET && !request.body().is_empty() {
+        return Err(Denied::Body);
+    }
     if request.body().len() > policy::MAX_REQUEST_BYTES {
         return Err(Denied::TooLarge);
     }
@@ -352,7 +365,7 @@ mod tests {
     /// comment on it; the assertion catches an explicitly configured proxy.
     #[test]
     fn the_production_client_is_locked_down() {
-        let agent = Egress::new(Mode::ReadOnly).agent;
+        let agent = Egress::new().agent;
         let config = agent.config();
         assert!(config.https_only(), "plain http must be impossible");
         assert_eq!(config.max_redirects(), 0, "redirects must not be followed");
@@ -373,7 +386,7 @@ mod tests {
             .header(header::HOST, "other.example")
             .body(Vec::new())
             .unwrap();
-        assert_eq!(check(Mode::ReadOnly, &request), Err(Denied::Header));
+        assert_eq!(check(&request), Err(Denied::Header));
     }
 
     #[test]
@@ -386,7 +399,7 @@ mod tests {
             .header(header::CONTENT_TYPE, "application/json")
             .body(Vec::new())
             .unwrap();
-        assert_eq!(check(Mode::ReadOnly, &request), Ok(()));
+        assert_eq!(check(&request), Ok(()));
 
         let request = Request::builder()
             .method(Method::GET)
@@ -394,16 +407,32 @@ mod tests {
             .header("x-anything-else", "1")
             .body(Vec::new())
             .unwrap();
-        assert_eq!(check(Mode::ReadOnly, &request), Err(Denied::Header));
+        assert_eq!(check(&request), Err(Denied::Header));
     }
 
     #[test]
     fn an_oversized_request_body_is_refused_before_sending() {
         let request = Request::builder()
             .method(Method::POST)
-            .uri("https://gmail.googleapis.com/gmail/v1/users/me/drafts")
+            .uri("https://oauth2.googleapis.com/token")
             .body(vec![0_u8; policy::MAX_REQUEST_BYTES + 1])
             .unwrap();
-        assert_eq!(check(Mode::Drafts, &request), Err(Denied::TooLarge));
+        assert_eq!(check(&request), Err(Denied::TooLarge));
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri("https://oauth2.googleapis.com/token")
+            .body(vec![0_u8; policy::MAX_REQUEST_BYTES])
+            .unwrap();
+        assert_eq!(check(&request), Ok(()));
+    }
+
+    #[test]
+    fn a_get_request_carries_no_body() {
+        let request = Request::builder()
+            .method(Method::GET)
+            .uri(ALLOWED_URL)
+            .body(b"x".to_vec())
+            .unwrap();
+        assert_eq!(check(&request), Err(Denied::Body));
     }
 }

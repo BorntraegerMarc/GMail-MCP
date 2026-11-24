@@ -1,16 +1,15 @@
-//! Secure, minimal, unofficial Gmail MCP server.
+//! Secure, minimal, unofficial Gmail MCP server. It reads mail and does nothing else.
 //!
 //! The crate is built in phases, one reviewable pull request each (the phases are listed in
 //! docs/decisions/README.md). This is the policy core: the pieces that decide what the
 //! server may do and how untrusted data is handled, with no server on top of them yet.
 //!
-//! - [`policy`]: the permission model, the egress allowlist, identifier validation, limits.
+//! - [`policy`]: the one OAuth scope, the egress allowlist, identifier validation, limits.
 //! - [`http`]: the egress guard, the only code that talks to the network.
-//! - [`text`]: wrapping and sanitising of email content on its way to the model.
-//! - [`draft`]: building a draft from the model's fields, with header-injection checks.
+//! - [`text`]: wrapping and sanitising of email content on its way to the model, and the
+//!   conversion of HTML-only mail to text.
 //! - [`log`]: stderr logging with static messages only.
 
-pub mod draft;
 pub mod http;
 pub mod log;
 pub mod policy;

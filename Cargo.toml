@@ -5,7 +5,7 @@ edition = "2024"
 # 1.89 is the highest `rust-version` in the planned dependency tree (measured 2026-11-23:
 # uuid, via rmcp). CI builds with exactly this toolchain in the `msrv` job.
 rust-version = "1.89"
-description = "Secure, minimal, unofficial Gmail MCP server: read mail, optionally create drafts, credentials in the OS credential store (macOS Keychain first)"
+description = "Secure, minimal, unofficial Gmail MCP server: reads your mail and nothing else; credentials in the OS credential store (macOS Keychain first)"
 license = "MIT"
 repository = "https://github.com/BorntraegerMarc/GMail-MCP"
 readme = "README.md"
@@ -20,11 +20,6 @@ publish = false
 # version requirement or a feature set changes without its allowlist changing too.
 
 [dependencies]
-# HTML-only mail to text (src/text.rs).
-html2text = "=0.17.4"
-# Builds the RFC 5322 draft message (src/draft.rs). `builder` only: no SMTP transport, so
-# nothing can be sent through it.
-lettre = { version = "=0.11.24", default-features = false, features = ["builder"] }
 # Used for its random token type (the delimiter nonce in src/text.rs); the OAuth flow itself
 # arrives with `auth`. No HTTP-client feature: all traffic must go through src/http.rs.
 oauth2 = { version = "=5.0.0", default-features = false }

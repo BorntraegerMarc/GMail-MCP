@@ -7,17 +7,17 @@
 
 This record answers the "Credential theft" row of "Security design at a glance" in README.md. A token file on disk can be read by other programs running as the user, for example a community Gmail MCP server, and the tokens in it give access to the mailbox within the granted scopes. The server should therefore write no plaintext token or client secret to disk.
 
-Secure secret storage is a platform feature, and it is the only platform-specific part of the server: Gmail calls, MCP handling and drafts are platform-neutral Rust. macOS has the Keychain; Linux and Windows have their own stores. This record was revised on 2026-11-23, before it was first merged: the first draft treated the whole product as macOS-only.
+Secure secret storage is a platform feature, and it is the only platform-specific part of the server: Gmail calls and MCP handling are platform-neutral Rust. macOS has the Keychain; Linux and Windows have their own stores. This record was revised on 2026-11-23, before it was first merged: the first draft treated the whole product as macOS-only.
 
 ## Decision
 
-- **OS credential store only.** Credentials (OAuth client id and secret, refresh token) are persisted only in the operating system's credential store, behind one small interface, in a single item that also holds the granted scopes (see 0002-two-layer-permission-model.md). Access tokens stay in memory only.
+- **OS credential store only.** Credentials (OAuth client id and secret, refresh token) are persisted only in the operating system's credential store, behind one small interface, in a single item that also holds the granted scopes (see 0014-read-only-no-composing.md). Access tokens stay in memory only.
 - **macOS first.** The macOS Keychain is the first store, through the `security-framework` crate used directly. Rejected: `keyring` 4.x, which is deprecated and split into `keyring-core` plus separate store crates (see 0004-dependency-policy-and-libraries.md).
 - **Other platforms: TODO.** No store exists yet for Linux or Windows. Candidates, not evaluated: the Secret Service API on Linux and Credential Manager on Windows. Each needs its own record and a dependency review under 0004. Until then those builds compile a stub whose operations return a clear "no secure store for this platform yet" error. There is never a file fallback, because that would put a plaintext copy back on disk.
 - **Lazy load.** Credentials load on the first tool call, not at startup, so `initialize` and `tools/list` work without a store and CI can smoke-test the protocol on Linux.
 - **Fail closed.** Every tool call fails with a clear error if the store or the credentials are unavailable when it needs them.
 - **Bring your own OAuth client.** No client id or secret is shipped in the repo. Rejected: a shipped secret, because it is extractable and would tie every user to one Google app.
-- **One-time import.** `gmail-mcp auth` reads Google's client secret JSON once into the store, tells the user to delete the file, and never deletes it itself. Later `auth` runs, such as the upgrade to drafts, reuse the stored client.
+- **One-time import.** `gmail-mcp auth` reads Google's client secret JSON once into the store, tells the user to delete the file, and never deletes it itself. Later `auth` runs, such as signing in again after a token expires, reuse the stored client.
 - **Secrets out of logs.** Secrets use a newtype with a redacted `Debug`, and logs go to stderr only, through one module with static messages. This is a guard, not a proof: error text returned to the client does not pass through the log module and must not contain secrets either (SECURITY.md).
 
 ## Consequences
@@ -38,5 +38,5 @@ Secure secret storage is a platform feature, and it is the only platform-specifi
 
 ## References
 
-- Decision records: [0002-two-layer-permission-model.md](0002-two-layer-permission-model.md), [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md) (where credentials may be sent), [0004-dependency-policy-and-libraries.md](0004-dependency-policy-and-libraries.md), [0012-ci-on-linux.md](0012-ci-on-linux.md)
+- Decision records: [0014-read-only-no-composing.md](0014-read-only-no-composing.md), [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md) (where credentials may be sent), [0004-dependency-policy-and-libraries.md](0004-dependency-policy-and-libraries.md), [0012-ci-on-linux.md](0012-ci-on-linux.md)
 - Repo files: [README.md](../../README.md), [SECURITY.md](../../SECURITY.md), [CONTRIBUTING.md](../../CONTRIBUTING.md) (secrets and logging rules), [.github/PULL_REQUEST_TEMPLATE.md](../../.github/PULL_REQUEST_TEMPLATE.md), [Cargo.toml](../../Cargo.toml) (print lints), [.gitignore](../../.gitignore), [docs/maintainers/releasing.md](../maintainers/releasing.md) (release signing)

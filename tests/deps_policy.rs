@@ -27,18 +27,6 @@ struct Allowed {
 const ALLOWED: &[Allowed] = &[
     Allowed {
         table: "dependencies",
-        name: "html2text",
-        default_features: true,
-        features: &[],
-    },
-    Allowed {
-        table: "dependencies",
-        name: "lettre",
-        default_features: false,
-        features: &["builder"],
-    },
-    Allowed {
-        table: "dependencies",
         name: "oauth2",
         default_features: false,
         features: &[],
@@ -89,6 +77,11 @@ mod manifest {
                 continue;
             }
             if let Some(header) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
+                assert!(
+                    !header.starts_with("patch") && !header.starts_with("replace"),
+                    "Cargo.toml line {}: [{header}] swaps a dependency's source behind the allowlist's back",
+                    number + 1
+                );
                 assert!(
                     !header.contains("dependencies")
                         || matches!(
@@ -258,4 +251,14 @@ fn the_lockfile_is_committed() {
         lock.is_file(),
         "Cargo.lock must be committed: CI and releases build with --locked"
     );
+}
+
+/// A Cargo configuration file can replace the crate registry or patch a crate without
+/// touching `Cargo.toml`, so the project has none.
+#[test]
+fn no_cargo_configuration_overrides_the_sources() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    for name in [".cargo/config.toml", ".cargo/config", "vendor"] {
+        assert!(!root.join(name).exists(), "{name} is not allowed");
+    }
 }

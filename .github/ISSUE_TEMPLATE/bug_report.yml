@@ -33,15 +33,6 @@ body:
       placeholder: macOS 15, Apple silicon, or Ubuntu 24.04, x86-64
     validations:
       required: true
-  - type: dropdown
-    id: mode
-    attributes:
-      label: Mode
-      options:
-        - read-only (default)
-        - drafts (--allow-drafts)
-    validations:
-      required: true
   - type: textarea
     id: logs
     attributes:

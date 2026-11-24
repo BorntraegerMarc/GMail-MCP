@@ -4,7 +4,7 @@ Thanks for helping. This project's value is that it is **small and hard to abuse
 
 ## Ground rules
 
-1. **No new write capability, ever.** The server must never send (reply-send included), forward, delete, trash, untrash, mark as spam, create, change or apply labels, or change filters or settings. The only Gmail write is creating a draft, and only when started with `--allow-drafts`. Pull requests that add any of these will be closed.
+1. **No write capability, ever.** The server only reads mail. It must never send (reply-send included), forward, create or change drafts, delete, trash, untrash, mark as spam, create, change or apply labels, or change filters or settings, and the only OAuth scope it requests is `gmail.readonly`. A suggested reply is written by the assistant into a Markdown file, not by this server. Pull requests that add any write will be closed.
 2. **Any change to what the server can do needs a security note** in the PR: a new tool or tool parameter, Gmail endpoint, HTTP method, OAuth scope, or allowed host. It must update the egress allowlist, `tests/static_policy.rs` and the README security table in the same PR.
 3. **Secrets never enter the repo or the logs.** No tokens, client secrets, real email content or addresses in code, tests, fixtures, docs, issues or PRs, and no local usernames or home-directory paths in docs or examples (use placeholders).
 4. **No panics on untrusted input.** Email content, headers and API responses are untrusted. Clippy denies `unwrap` and `expect` in production code, but it does not flag indexing, slicing, arithmetic or `panic!`, so return an error instead; a panic aborts the server (release builds set `panic = "abort"`).
@@ -23,7 +23,7 @@ A new direct dependency must be:
 
 ## Security-critical files
 
-Review these with extra care, and expect extra scrutiny of changes to them: `src/http.rs` (the only network egress), `src/policy.rs`, `src/auth.rs`, `src/store.rs`, `src/store/`, `src/draft.rs`, `src/text.rs`, `src/tools.rs`, `src/log.rs`, `deny.toml`, `clippy.toml`, the `[lints]` tables in `Cargo.toml`, `.github/workflows/`, everything under `tests/`, and `AGENTS.md` and `CLAUDE.md` (they steer other contributors' coding agents).
+Review these with extra care, and expect extra scrutiny of changes to them: `src/http.rs` (the only network egress), `src/policy.rs`, `src/auth.rs`, `src/store.rs`, `src/store/`, `src/text.rs`, `src/tools.rs`, `src/log.rs`, `deny.toml`, `clippy.toml`, the `[lints]` tables in `Cargo.toml`, `.github/workflows/`, everything under `tests/`, and `AGENTS.md` and `CLAUDE.md` (they steer other contributors' coding agents).
 
 ## Local checks
 
