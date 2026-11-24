@@ -13,6 +13,12 @@
 
 A size and depth check in front of it was tried and did not hold. It had to guess how the HTML parser nests the markup, and markup such as `<p a==">` or `<svg><title>` is read differently by the parser, which got 3 to 5 seconds of CPU per email past it.
 
+The other crates that a search turned up were run on 2026-11-24 against the same hostile inputs, and against 15 seconds of random HTML each:
+
+- `htmd` 0.6.1 (HTML to Markdown, 12.6 million downloads) aborts with a stack overflow at 5,000 nested elements and used 7 GB of memory on the nested-quote input.
+- `scraper` 0.29 and `ammonia` 4.2 (parsers, not converters) do not panic but, like `html2text`, take time that grows with the square of the nesting depth: 38 to 46 seconds at 200,000 levels. The HTML parser's tree builder is where that cost sits, so any approach that builds a tree shares it.
+- `mail-parser` 1.0.2 (its `html_to_text`), `nanohtml2text` 0.3.0 and `lol_html` 3.0.3 survived every input at a flat cost. `mail-parser` glues words and numbers together ("Widget2€10.00") and drops links, which makes the text unusable. `nanohtml2text` (no dependencies, 0.6 million downloads, one maintainer, an `unwrap` on a parsing path, no output limit) reads about as well as the converter below. `lol_html` (Cloudflare, 7.8 million downloads, 41 crates) is a streaming rewriter: it neither decodes character references nor lays out text, so that work would stay ours.
+
 ## Decision
 
 `html_to_text` in `src/text.rs` converts HTML-only mail. It makes one pass and builds no tree:
@@ -23,6 +29,8 @@ A size and depth check in front of it was tried and did not hold. It had to gues
 - `html2text` and the crates only it needed leave the dependency list.
 - Rejected: keeping `html2text` behind `catch_unwind`. That needs `panic = "unwind"`, which gives up abort on panic for the whole program (the `[profile.release]` comment in `Cargo.toml` says why), and it does not fix the time and memory problems.
 - Rejected: using `html5ever` directly. It is a new direct dependency, and it still builds a tree whose depth and size would need bounding.
+- Rejected: `nanohtml2text`. It is below the dependency bar of 0004 (one maintainer, 0.6 million downloads) and has no output limit, so it would not replace the budget and truncation code that is ours anyway.
+- Rejected: `lol_html`. It meets the bar, but it replaces only the tokenizer, roughly half of the converter, and brings 41 crates, among them a CSS selector engine that this use never needs.
 
 ## Consequences
 
@@ -33,7 +41,7 @@ A size and depth check in front of it was tried and did not hold. It had to gues
 
 ## What would change this decision
 
-- A maintained HTML-to-text crate that survives fuzzing on hostile input and has a bounded cost, checked before adoption.
+- The converter proving unreliable, in a review or in use. `lol_html` is then the first crate to try, and `nanohtml2text` if the dependency bar is relaxed.
 - Real mail that the converter renders badly enough to matter. The answer is to improve the converter first.
 
 ## References
