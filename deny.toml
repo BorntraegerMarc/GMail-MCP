@@ -15,8 +15,8 @@ ignore = []
 
 [licenses]
 version = 2
-# Permissive licenses only. Checked against the real tree (rmcp, ureq, oauth2, lettre,
-# html2text, security-framework) in the Phase 0 dependency measurement.
+# Permissive licenses only. Checked against the real tree (rmcp, ureq, oauth2,
+# security-framework, and proptest for tests) when the libraries were chosen.
 allow = [
     "MIT",
     "Apache-2.0",
@@ -49,6 +49,14 @@ deny = [
     { crate = "native-tls" },
     { crate = "curl" },
     { crate = "curl-sys" },
+    # The server composes no mail (docs/decisions/0014-read-only-no-composing.md): a crate that
+    # builds or sends messages has no business in the tree.
+    { crate = "lettre" },
+    # Not a ban: only one version of ureq may be in the tree. A second major (for example
+    # through oauth2's own `ureq` feature, which pulls ureq 2) would be a second HTTP client
+    # outside the egress guard. `multiple-versions` above only warns, so this entry is what
+    # fails the check. docs/decisions/0004-dependency-policy-and-libraries.md
+    { crate = "ureq", deny-multiple-versions = true },
 ]
 
 [sources]

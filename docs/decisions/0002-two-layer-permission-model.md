@@ -1,6 +1,6 @@
 # 0002. Two-layer permission model, read-only by default
 
-- Status: Accepted (2026-11-23)
+- Status: Superseded by 0014 (accepted 2026-11-23)
 - Implementation: Not implemented as of 2026-11-23: only the project scaffold exists, with no server code. Planned: the scope request, grant storage and the refusal rule in `auth` (phase 2); the tool-list switch and the clear `create_draft` failure in `serve`, and a stdio smoke test that asserts both tool lists exactly (four tools by default, five with `--allow-drafts`) (phase 3). CHANGELOG.md records what has landed since.
 
 ## Context
@@ -35,6 +35,7 @@ Permissions come in two independent layers, and the default is read-only. Drafts
 
 ## References
 
+- [0014-read-only-no-composing.md](0014-read-only-no-composing.md): the decision that replaced this one. The server no longer creates drafts, so there is one scope and one tool list.
 - [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md): the egress allowlist that backs the no-send guarantee in drafts mode.
 - [0005-untrusted-email-content.md](0005-untrusted-email-content.md): prompt injection through email and the limits of wrapping.
 - [0006-credentials-in-os-credential-store.md](0006-credentials-in-os-credential-store.md): the credential-store item that holds the granted scopes.

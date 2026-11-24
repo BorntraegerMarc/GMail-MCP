@@ -6,8 +6,8 @@
 ## Context
 
 - The design was settled before any server code existed. Its detailed reasoning (why read-only by default, why one egress guard, why these crates, which alternatives were rejected) lived only in a private planning document outside this repository. Rationale that lives in a chat log or a private plan is lost to whoever reads the repository later.
-- The design calls for guards that are redundant on purpose, for example CR/LF rejection before `lettre` sees a value and an egress allowlist (`0003-single-egress-allowlist.md`) on top of OAuth scopes. They look removable to a reader, human or AI, who sees only what the code does and not why.
-- A comment lives in one file, but a decision such as the permission model (`0002-two-layer-permission-model.md`) spans several.
+- The design calls for guards that are redundant on purpose, for example an egress allowlist (`0003-single-egress-allowlist.md`) on top of a read-only OAuth scope. They look removable to a reader, human or AI, who sees only what the code does and not why.
+- A comment lives in one file, but a decision such as the permission model (`0014-read-only-no-composing.md`) spans several.
 
 ## Decision
 
@@ -31,7 +31,7 @@ If records are not maintained (for example, design changes merge with the checkl
 
 ## References
 
-- [0002-two-layer-permission-model.md](0002-two-layer-permission-model.md)
+- [0014-read-only-no-composing.md](0014-read-only-no-composing.md)
 - [0003-single-egress-allowlist.md](0003-single-egress-allowlist.md)
 - [CONTRIBUTING.md](../../CONTRIBUTING.md)
 - [.github/PULL_REQUEST_TEMPLATE.md](../../.github/PULL_REQUEST_TEMPLATE.md)

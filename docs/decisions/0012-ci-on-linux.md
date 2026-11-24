@@ -5,7 +5,7 @@
 
 ## Context
 
-The server is not tied to one platform: Gmail calls, MCP handling and drafts are platform-neutral Rust, and only secret storage differs by platform (0006). The macOS Keychain store compiles only on macOS, so Linux CI never builds it. macOS runners are also the expensive ones: on a private repository a macOS minute costs about ten times a Linux minute (0011). Earlier drafts of the pipeline ran the whole test suite on macOS as well, first on every pull-request commit and then on main; both were dropped, because one small platform-specific module does not justify running everything there.
+The server is not tied to one platform: Gmail calls and MCP handling are platform-neutral Rust, and only secret storage differs by platform (0006). The macOS Keychain store compiles only on macOS, so Linux CI never builds it. macOS runners are also the expensive ones: on a private repository a macOS minute costs about ten times a Linux minute (0011). Earlier drafts of the pipeline ran the whole test suite on macOS as well, first on every pull-request commit and then on main; both were dropped, because one small platform-specific module does not justify running everything there.
 
 ## Decision
 

@@ -4,9 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 **A secure, minimal Gmail MCP server in Rust for personal Gmail accounts, while Google's official one is gated.**
-Search and read your mail from Claude, optionally create drafts, and nothing else: no send, no delete, no settings, no telemetry. Credentials stay in your operating system's credential store (the macOS Keychain today).
+Search and read your mail from Claude, and nothing else: no send, no drafts, no delete, no settings, no telemetry. Credentials stay in your operating system's credential store (the macOS Keychain today).
 
-> **Status: early development.** This repository currently contains the project scaffold only. The server lands phase by phase, one reviewable pull request each; progress is in [CHANGELOG.md](CHANGELOG.md).
+> **Status: early development.** This repository currently contains the project scaffold and the policy core (the one OAuth scope, the egress guard and the handling of untrusted email content), but not yet a working server. The server lands phase by phase, one reviewable pull request each; progress is in [CHANGELOG.md](CHANGELOG.md).
 >
 > **Unofficial.** Not affiliated with, endorsed by, or sponsored by Google or Anthropic. "Gmail" is a trademark of Google LLC.
 
@@ -14,40 +14,42 @@ Search and read your mail from Claude, optionally create drafts, and nothing els
 
 Google's official Gmail MCP server (`gmailmcp.googleapis.com`) is [available as part of the Google Workspace Developer Preview Program](https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server). Per Google's [program page](https://developers.google.com/workspace/preview), applicants need a Google Workspace account, and the application form states that Gmail addresses, service accounts and Google Groups are not accepted. As of November 2026 that means a personal `@gmail.com` account cannot enroll.
 
-This project is a small stand-in for that gap. It also takes the opposite stance on power: the official server's documented scopes include the broad `gmail.modify`; this one requests `gmail.readonly` by default and adds `gmail.compose` only when you ask for it.
+This project is a small stand-in for that gap. It also takes the opposite stance on power: the official server's documented scopes include the broad `gmail.modify`; this one requests `gmail.readonly` and nothing else.
 
 ## What it will do
 
-Five tools, exactly these, and no others:
+Four tools, exactly these, and no others:
 
-| Tool | Needs `--allow-drafts` | What it does |
-|---|---|---|
-| `list_labels` | no | List your Gmail labels |
-| `search_threads` | no | Gmail search syntax; returns id, subject, sender, date, snippet (max 25) |
-| `get_thread` | no | Messages with headers and plain-text body (capped, with a visible truncation marker) |
-| `get_message` | no | One message; attachments are metadata only, never downloaded |
-| `create_draft` | **yes** | Creates a draft. It is **not sent**; you review and send it yourself in Gmail |
+| Tool | What it does |
+|---|---|
+| `list_labels` | List your Gmail labels |
+| `search_threads` | Gmail search syntax; returns id, subject, sender, date, snippet (max 25) |
+| `get_thread` | Messages with headers and a plain-text body (capped, with a visible truncation marker) |
+| `get_message` | One message; attachments are metadata only, never downloaded |
 
-**Deliberately not implemented, and never will be:** send (reply-send included), forward, delete, trash, untrash, spam, label changes, filters, settings.
+**Deliberately not implemented, and never will be:** send (reply-send included), forward, create or change drafts, delete, trash, untrash, spam, label changes, filters, settings.
 
-### Two layers of permission
+### Replying to a mail
 
-1. **Google-side scope** (enforced by Google): `gmail-mcp auth` requests only `gmail.readonly`. `gmail-mcp auth --allow-drafts` adds `gmail.compose`. With a read-only grant, creating a draft is impossible even if the code had a bug.
-2. **Server-side tool list**: `gmail-mcp serve` exposes the four read tools. `gmail-mcp serve --allow-drafts` adds `create_draft`.
+The server does not compose mail. To answer an email, ask Claude for a suggested reply: it writes the text into a Markdown file (in a folder you choose, with its own file tools), and you copy it into your mail client and send it yourself.
+
+### One permission, enforced by Google
+
+`gmail-mcp auth` requests only `gmail.readonly`. With that scope Google refuses every write, whatever this code does: the server cannot send, draft, change or delete mail. Inside the process, the egress guard says the same thing a second time (the Gmail host has no route but `GET`) and does what the scope cannot: it keeps the server from talking to any other host.
 
 ## Security design at a glance
 
 | Threat | Mitigation |
 |---|---|
-| Supply chain | A short list of direct dependencies (about ten planned), all official or very widely used, though the full tree is larger (161 crates measured for the planned set; see [ADR 0004](docs/decisions/0004-dependency-policy-and-libraries.md)); exact pins, `Cargo.lock` committed, `cargo-deny` policy, Dependabot with cooldown, every GitHub Action pinned to a commit SHA, build-provenance attestation on releases |
+| Supply chain | A short list of direct dependencies (about eight planned), all official or very widely used, though the full tree is larger (about 140 crates expected, 82 so far; see [ADR 0004](docs/decisions/0004-dependency-policy-and-libraries.md)); exact pins, `Cargo.lock` committed, `cargo-deny` policy, Dependabot with cooldown, every GitHub Action pinned to a commit SHA, build-provenance attestation on releases |
 | Credential theft | Tokens and client secret only in the OS credential store (the macOS Keychain today); no token or secret files; never logged; fails closed if the store is unavailable |
-| Prompt injection via email | No tool can send, delete or change settings; worst case is a draft you see before anything is sent. Email content is wrapped in per-call random delimiters, sanitised, and labelled as data |
+| Prompt injection via email | The server can only read: Google's read-only scope refuses every write, so even a fully steered server cannot send, draft or change anything. Email content is wrapped in per-call random delimiters, sanitised, and labelled as data |
 | Silent exfiltration by the server | One audited egress function allows only `oauth2.googleapis.com` and `gmail.googleapis.com`, with a fixed method and path allowlist; static tests fail on anything else; no telemetry |
 
 ## Honest limits
 
-- `gmail.compose` is the narrowest scope Google offers for drafts, and it technically permits sending at the API level. Google has no draft-only scope. The guarantee that nothing is sent comes from this code never calling a send endpoint, and from the egress allowlist and tests that enforce it. If you do not need drafts, do not grant the scope.
-- Wrapping email content as untrusted data **reduces** prompt-injection risk; it does **not** eliminate it. An assistant that reads a hostile email while also holding other tools (web fetch, other MCP servers) can still be manipulated into leaking data through those tools, which this server cannot prevent.
+- The server can still read all of your mail: `gmail.readonly` covers every message, and it is the narrowest scope that returns message bodies. Grant it only to an app you trust, and revoke it in your Google account when you stop using the server.
+- Wrapping email content as untrusted data **reduces** prompt-injection risk; it does **not** eliminate it. An assistant that reads a hostile email while also holding other tools (file writing, web fetch, other MCP servers) can still be manipulated into misusing them: writing a misleading suggested reply, or leaking what it read through a URL. This server cannot prevent that. Read a suggested reply before you paste it.
 - A locally built binary is ad-hoc signed, so macOS may ask for Keychain access again after a rebuild.
 - An OAuth app in "Testing" mode has refresh tokens that expire after 7 days. Publishing the consent screen as "In production" (unverified, single user) avoids that, at the cost of Google's unverified-app warning screen and a 100-user cap.
 - **Platforms:** secret storage is implemented for macOS only (the Keychain). Linux and Windows are TODO: until a secure store exists there, the server starts but every tool call fails closed, and it never falls back to a file.
