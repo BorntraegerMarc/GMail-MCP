@@ -49,6 +49,11 @@ deny = [
     { crate = "native-tls" },
     { crate = "curl" },
     { crate = "curl-sys" },
+    # Not a ban: only one version of ureq may be in the tree. A second major (for example
+    # through oauth2's own `ureq` feature, which pulls ureq 2) would be a second HTTP client
+    # outside the egress guard. `multiple-versions` above only warns, so this entry is what
+    # fails the check. docs/decisions/0004-dependency-policy-and-libraries.md
+    { crate = "ureq", deny-multiple-versions = true },
 ]
 
 [sources]

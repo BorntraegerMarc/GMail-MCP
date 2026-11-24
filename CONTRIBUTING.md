@@ -19,7 +19,7 @@ A new direct dependency must be:
 - pinned with an exact version (`=x.y.z`) in `Cargo.toml`, with `Cargo.lock` committed,
 - justified in the PR description: what it replaces, how many crates it adds (`cargo tree`), and why a small amount of code would not do.
 
-`deny.toml` bans a second HTTP/TLS stack (`reqwest`, `hyper`, `openssl`, `native-tls`, `curl`, ...) and unknown registries; `tests/deps_policy.rs` (added with the first dependencies) fails when the direct dependency list changes without updating its allowlist, so additions are always visible in review. Dependabot proposes updates weekly with a cooldown; none are auto-merged.
+`deny.toml` bans a second HTTP/TLS stack (`reqwest`, `hyper`, `openssl`, `native-tls`, `curl`, ...), a second version of `ureq` and unknown registries; `tests/deps_policy.rs` fails when the direct dependency list, a `default-features` setting or an enabled feature changes without updating its allowlist, so additions are always visible in review. Dependabot proposes updates weekly with a cooldown; none are auto-merged.
 
 ## Security-critical files
 

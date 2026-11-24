@@ -5,14 +5,13 @@
 
 use std::process::ExitCode;
 
-#[allow(
-    clippy::print_stderr,
-    reason = "scaffold notice; real logging lands in log.rs"
-)]
+use gmail_mcp::log;
+
 fn main() -> ExitCode {
-    eprintln!(
-        "gmail-mcp {}: scaffold build, not implemented yet",
-        gmail_mcp::VERSION
-    );
+    log::error(concat!(
+        "version ",
+        env!("CARGO_PKG_VERSION"),
+        ": scaffold build, not implemented yet"
+    ));
     ExitCode::from(2)
 }

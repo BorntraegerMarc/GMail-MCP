@@ -1,7 +1,20 @@
 //! Secure, minimal, unofficial Gmail MCP server.
 //!
-//! This is the Phase 0 scaffold: the implementation lands in later pull requests,
-//! one reviewable phase at a time (the phases are listed in docs/decisions/README.md).
+//! The crate is built in phases, one reviewable pull request each (the phases are listed in
+//! docs/decisions/README.md). This is the policy core: the pieces that decide what the
+//! server may do and how untrusted data is handled, with no server on top of them yet.
+//!
+//! - [`policy`]: the permission model, the egress allowlist, identifier validation, limits.
+//! - [`http`]: the egress guard, the only code that talks to the network.
+//! - [`text`]: wrapping and sanitising of email content on its way to the model.
+//! - [`draft`]: building a draft from the model's fields, with header-injection checks.
+//! - [`log`]: stderr logging with static messages only.
+
+pub mod draft;
+pub mod http;
+pub mod log;
+pub mod policy;
+pub mod text;
 
 /// Crate version, as declared in `Cargo.toml`.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

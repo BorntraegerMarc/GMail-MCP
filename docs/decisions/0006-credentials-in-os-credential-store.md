@@ -1,7 +1,7 @@
 # 0006. Credentials only in the OS credential store (macOS Keychain first), fail closed
 
 - Status: Accepted (2026-11-23)
-- Implementation: Not implemented yet. Guardrails today include the `.gitignore` entries for credential-like file names, the clippy print lints in `Cargo.toml`, and the secrets rules in CONTRIBUTING.md and the PR template. Planned: the log module (phase 1); the credential-store interface, the macOS Keychain store, the fail-closed stub for other platforms, `gmail-mcp auth`, the secret type and a script that scans for plaintext secrets (phase 2); the tools that trigger the lazy load and the stdio smoke test that relies on it (phase 3). Stores for other platforms: TODO, no phase assigned.
+- Implementation: Partly in place. Guardrails include the `.gitignore` entries for credential-like file names, the clippy print lints in `Cargo.toml`, the secrets rules in CONTRIBUTING.md and the PR template, and the log module (`src/log.rs`, phase 1). The log module takes `&'static str` messages only, so a formatted token or subject does not compile, and `tests/static_policy.rs` fails on any print macro, any mention of stdout, or stderr outside the log module. No credential code exists yet. Planned: the credential-store interface, the macOS Keychain store, the fail-closed stub for other platforms, `gmail-mcp auth`, the secret type and a script that scans for plaintext secrets (phase 2); the tools that trigger the lazy load and the stdio smoke test that relies on it (phase 3). Stores for other platforms: TODO, no phase assigned.
 
 ## Context
 

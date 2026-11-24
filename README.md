@@ -6,7 +6,7 @@
 **A secure, minimal Gmail MCP server in Rust for personal Gmail accounts, while Google's official one is gated.**
 Search and read your mail from Claude, optionally create drafts, and nothing else: no send, no delete, no settings, no telemetry. Credentials stay in your operating system's credential store (the macOS Keychain today).
 
-> **Status: early development.** This repository currently contains the project scaffold only. The server lands phase by phase, one reviewable pull request each; progress is in [CHANGELOG.md](CHANGELOG.md).
+> **Status: early development.** This repository currently contains the project scaffold and the policy core (the permission model, the egress guard, the handling of untrusted email content and the draft builder), but not yet a working server. The server lands phase by phase, one reviewable pull request each; progress is in [CHANGELOG.md](CHANGELOG.md).
 >
 > **Unofficial.** Not affiliated with, endorsed by, or sponsored by Google or Anthropic. "Gmail" is a trademark of Google LLC.
 

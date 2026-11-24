@@ -1,7 +1,7 @@
 # 0008. Blocking HTTP client; tokio only as the MCP runtime
 
 - Status: Accepted (2026-11-23)
-- Implementation: Not implemented yet; only the scaffold exists. Planned: `ureq` and the egress guard in phase 1; the `rmcp` server and its tokio runtime in phase 3.
+- Implementation: Partly in place (phase 1): blocking `ureq` with rustls behind the egress guard in `src/http.rs`, with no async code in the HTTP path. Planned: the `rmcp` server, its tokio runtime, the `spawn_blocking` calls and the bounded parallel search, all in phase 3.
 
 ## Context
 

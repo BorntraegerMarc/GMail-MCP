@@ -1,7 +1,7 @@
 # 0002. Two-layer permission model, read-only by default
 
 - Status: Accepted (2026-11-23)
-- Implementation: Not implemented as of 2026-11-23: only the project scaffold exists, with no server code. Planned: the scope request, grant storage and the refusal rule in `auth` (phase 2); the tool-list switch and the clear `create_draft` failure in `serve`, and a stdio smoke test that asserts both tool lists exactly (four tools by default, five with `--allow-drafts`) (phase 3). CHANGELOG.md records what has landed since.
+- Implementation: Partly in place (phase 1): `Mode`, the two scope constants and the mapping from mode to scopes in `src/policy.rs`, and the egress guard's refusal of the draft route in read-only mode (`src/http.rs`), tested in `src/policy.rs` and `tests/egress_policy.rs`. Planned: the scope request, grant storage and the refusal rule in `auth` (phase 2); the tool-list switch and the clear `create_draft` failure in `serve`, and a stdio smoke test that asserts both tool lists exactly (four tools by default, five with `--allow-drafts`) (phase 3). CHANGELOG.md records what has landed since.
 
 ## Context
 
@@ -15,6 +15,7 @@ Permissions come in two independent layers, and the default is read-only. Drafts
 
 - **Layer 1, Google-side scope (enforced by Google).** By default `gmail-mcp auth` will request only `gmail.readonly`. `gmail-mcp auth --allow-drafts` will request `gmail.readonly` plus `gmail.compose`.
 - **Layer 2, server-side tool list.** `gmail-mcp serve` will expose four read tools: `list_labels`, `search_threads`, `get_thread`, `get_message`. `gmail-mcp serve --allow-drafts` will add `create_draft`.
+- **The egress guard enforces the mode too.** In read-only mode it refuses the draft route (0003-single-egress-allowlist.md), so a bug in the tool list alone cannot create a draft.
 - **No other write tools.** Send, forward, reply-send, delete, trash, untrash, spam, label create/modify/apply, filters and settings are not implemented and will not be added.
 - **Granted scopes are read from the token response**, not taken from the request. `auth` will store them and refuse to store a grant without `gmail.readonly`, which both modes request.
 - **Replaced: `gmail.compose` always on.** Every user would be asked for a scope that can send at the API level, including users who never want drafts.
@@ -23,7 +24,7 @@ Permissions come in two independent layers, and the default is read-only. Drafts
 
 - With a read-only grant, creating a draft is impossible even if the tool code or the Gmail client had a bug, because Google enforces the scope. That holds only if the grant really is read-only, so `auth` prints what Google actually granted for the user to check.
 - Upgrading from read-only to drafts will take two steps: re-run `gmail-mcp auth --allow-drafts`, then start `serve` with `--allow-drafts`. The stored grant and the `serve` flag have to be kept consistent: `gmail.compose` without the flag leaves `create_draft` unlisted, and the flag without `gmail.compose` must make `create_draft` fail with a clear message.
-- In drafts mode the no-send guarantee is weaker than in read-only mode, because `gmail.compose` allows sending at the API level. It rests on the code never calling a send endpoint, and on the egress allowlist and the static tests (both planned for phase 1, see 0003-single-egress-allowlist.md).
+- In drafts mode the no-send guarantee is weaker than in read-only mode, because `gmail.compose` allows sending at the API level. It rests on the code never calling a send endpoint, and on the egress allowlist and the static tests (see 0003-single-egress-allowlist.md).
 - The planned smoke test is the mechanical guard for layer 2: adding a tool changes the asserted list, so it shows up in review instead of passing silently.
 - The layers bound what this server can do, not what the assistant does with its other tools (see 0005-untrusted-email-content.md).
 - Costs: two modes to build, test and document, and `auth` has to cope with grants narrower than requested.

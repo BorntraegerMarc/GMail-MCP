@@ -14,8 +14,26 @@ categories = ["command-line-utilities"]
 # Never published to crates.io: distribution is source + attested GitHub releases.
 publish = false
 
-# Dependencies arrive in the PRs that use them. Policy (see CONTRIBUTING.md):
-# official or very widely used crates only, exact `=` pins, Cargo.lock committed.
+# Dependencies arrive in the PRs that use them. Policy (see CONTRIBUTING.md and
+# docs/decisions/0004-dependency-policy-and-libraries.md): official or very widely used crates
+# only, exact `=` pins, Cargo.lock committed. tests/deps_policy.rs fails when this list, a
+# version requirement or a feature set changes without its allowlist changing too.
+
+[dependencies]
+# HTML-only mail to text (src/text.rs).
+html2text = "=0.17.4"
+# Builds the RFC 5322 draft message (src/draft.rs). `builder` only: no SMTP transport, so
+# nothing can be sent through it.
+lettre = { version = "=0.11.24", default-features = false, features = ["builder"] }
+# Used for its random token type (the delimiter nonce in src/text.rs); the OAuth flow itself
+# arrives with `auth`. No HTTP-client feature: all traffic must go through src/http.rs.
+oauth2 = { version = "=5.0.0", default-features = false }
+# Blocking HTTPS client behind the egress guard (src/http.rs); TLS through rustls.
+ureq = { version = "=3.5.2", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+# Property tests on untrusted-input handling.
+proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
 
 [lints.rust]
 # This crate needs no unsafe code; platform FFI (such as the macOS Keychain) lives in a dependency.
