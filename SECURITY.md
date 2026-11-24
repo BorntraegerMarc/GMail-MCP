@@ -21,6 +21,7 @@ In scope, because they break the project's stated guarantees:
 
 - Any way to make the server send (reply-send included), forward, create or change a draft, delete, trash, untrash, mark as spam, label, or change settings or filters in Gmail, or to make it request a scope other than `gmail.readonly`.
 - Any way to make the server contact a host other than the allowlisted Google hosts, or to bypass the single egress guard.
+- Any way for another program or a web page to complete, end or redirect the sign-in (the loopback listener of `gmail-mcp auth`) without the `state` it issued, or to make it store a grant that holds more than `gmail.readonly`.
 - Any way to read, log, or leak OAuth tokens, client secrets, email content, subjects or recipients (including via logs, stdout, error messages or files on disk).
 - Path or ID injection into Gmail API requests.
 - A bypass of the untrusted-content wrapping or sanitising that leads to concrete harm.
@@ -28,6 +29,7 @@ In scope, because they break the project's stated guarantees:
 
 Out of scope:
 
+- A local program that floods the sign-in port so that `gmail-mcp auth` times out. The listener serves connections side by side and keeps serving the browser's redirect, but it cannot stop a determined program on the same machine from using the port up; the sign-in is run again.
 - Prompt injection as a general class. The wrapping reduces the risk but cannot eliminate it; this limit is documented in the README.
 - Vulnerabilities in Google services, in your operating system, or in an AI client.
 - Vulnerabilities in a dependency that are already published as RustSec advisories (Dependabot and `cargo deny` track these); please report them upstream.

@@ -1,7 +1,7 @@
 # 0014. The server only reads mail; suggested replies are written by the assistant
 
 - Status: Accepted (2026-11-24); supersedes [0002](0002-two-layer-permission-model.md)
-- Implementation: Partly in place (phase 1). The route table has no Gmail route but `GET`, the only scope the code names is `gmail.readonly`, and no mail library is in the tree; `src/policy.rs` and its unit tests, `tests/egress_policy.rs`, `tests/static_policy.rs` and `deny.toml` pin all three. Planned: `auth` requests only `gmail.readonly` and refuses to store a grant that holds any other scope (phase 2); `serve` lists exactly the four read tools, has no mode flag, and a stdio smoke test asserts the list (phase 3); the README and SETUP.md describe how to get a suggested reply (phase 4).
+- Implementation: Partly in place (phases 1 and 2). The route table has no Gmail route but `GET`, the only scope the code names is `gmail.readonly`, and no mail library is in the tree; `src/policy.rs` and its unit tests, `tests/egress_policy.rs`, `tests/static_policy.rs` and `deny.toml` pin all three. `auth` requests only `gmail.readonly` and refuses to store a grant that holds any other scope or that Google does not describe (`policy::check_grant`; `store::Credentials` cannot be built with another scope, and a stored item that holds one is refused on load; pinned by `tests/auth_flow.rs` and `tests/store_policy.rs`). Planned: `serve` lists exactly the four read tools, has no mode flag, and a stdio smoke test asserts the list (phase 3); the README and SETUP.md describe how to get a suggested reply (phase 4).
 
 ## Context
 
@@ -25,7 +25,7 @@ On 2026-11-24 the maintainer decided that the server need not compose mail at al
 - The design gets smaller: no mode flag, one tool list, no input validation for composing, and `lettre` with its dependencies is out of the tree.
 - The worst case through this server is now "it reads mail it was asked for": it cannot send, draft, change or delete anything. A model steered by a hostile email can still misuse its other tools, for example by writing a misleading suggested reply to a file or fetching a URL, and this server cannot prevent that (0005). The user reads a suggested reply before pasting it.
 - Costs: there are no one-click drafts in Gmail and no automatic threading; the user replies in their own client. `gmail.readonly` still reaches all mail, and `gmail.metadata`, which cannot read bodies, does not fit the use.
-- Phase 2 has to check the grant: an earlier consent for the same OAuth client could hand back more scopes than the request names, so `auth` compares what Google granted with the one scope it wants and refuses anything else.
+- `auth` has to check the grant: an earlier consent for the same OAuth client could hand back more scopes than the request names, so `auth` compares what Google granted with the one scope it wants and refuses anything else.
 
 ## What would change this decision
 

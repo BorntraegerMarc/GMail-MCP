@@ -9,7 +9,7 @@ Supply chain is the first threat in the README's security table. [`0004-dependen
 
 The repository is meant to be public (it is private for now; see 0011) and ships binaries as GitHub releases, not on crates.io. Outside contributors can open pull requests that run workflows, third-party actions run inside the project's jobs, and users run what is published. A compromised workflow, action or release job could alter the binary or take the token that publishes it.
 
-The finished server will hold a user's Gmail grant in the operating system's credential store, the macOS Keychain first ([`0006-credentials-in-os-credential-store.md`](0006-credentials-in-os-credential-store.md); planned, phases 2 and 3), so a tampered release would run with that access.
+The finished server will hold a user's Gmail grant in the operating system's credential store, the macOS Keychain first ([`0006-credentials-in-os-credential-store.md`](0006-credentials-in-os-credential-store.md); the store exists since phase 2, the tools that use it arrive in phase 3), so a tampered release would run with that access.
 
 ## Decision
 

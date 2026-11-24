@@ -12,9 +12,14 @@
 //! deliberately not compared, so Dependabot's version bumps stay mergeable.
 //! Why: docs/decisions/0004-dependency-policy-and-libraries.md.
 
+/// The one platform-specific dependency table the project uses, for the macOS Keychain crate.
+/// Other platforms compile a stub store, so that crate is not built there.
+const MACOS_TABLE: &str = "target.'cfg(target_os = \"macos\")'.dependencies";
+
 /// A direct dependency the project has agreed to depend on.
 struct Allowed {
-    /// The manifest table: `dependencies`, `dev-dependencies` or `build-dependencies`.
+    /// The manifest table: `dependencies`, `dev-dependencies`, `build-dependencies` or
+    /// [`MACOS_TABLE`].
     table: &'static str,
     name: &'static str,
     default_features: bool,
@@ -33,9 +38,21 @@ const ALLOWED: &[Allowed] = &[
     },
     Allowed {
         table: "dependencies",
+        name: "serde_json",
+        default_features: false,
+        features: &["std"],
+    },
+    Allowed {
+        table: "dependencies",
         name: "ureq",
         default_features: false,
         features: &["rustls"],
+    },
+    Allowed {
+        table: MACOS_TABLE,
+        name: "security-framework",
+        default_features: false,
+        features: &[],
     },
     Allowed {
         table: "dev-dependencies",
@@ -64,8 +81,9 @@ mod manifest {
     /// Reads the dependency tables of `Cargo.toml`. It understands exactly the two forms this
     /// project uses, `name = "=x.y.z"` and a one-line inline table with `version`,
     /// `default-features` and `features`, and refuses everything else (sub-tables, `git`,
-    /// `path`, `registry`, `package`, `optional`, `workspace`, target-specific tables), so
-    /// that a new form cannot slip past the allowlist unnoticed. Extend it deliberately.
+    /// `path`, `registry`, `package`, `optional`, `workspace`, and every target-specific table
+    /// but the macOS one), so that a new form cannot slip past the allowlist unnoticed.
+    /// Extend it deliberately.
     pub fn declared() -> Vec<Declared> {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
         let text = fs::read_to_string(path).expect("Cargo.toml can be read");
@@ -87,7 +105,8 @@ mod manifest {
                         || matches!(
                             header,
                             "dependencies" | "dev-dependencies" | "build-dependencies"
-                        ),
+                        )
+                        || header == super::MACOS_TABLE,
                     "Cargo.toml line {}: the dependency table [{header}] is a form tests/deps_policy.rs does not read; \
                      extend the parser deliberately before using it",
                     number + 1
@@ -98,7 +117,8 @@ mod manifest {
             if matches!(
                 table.as_str(),
                 "dependencies" | "dev-dependencies" | "build-dependencies"
-            ) {
+            ) || table == super::MACOS_TABLE
+            {
                 out.push(parse(&table, line, number + 1));
             }
         }

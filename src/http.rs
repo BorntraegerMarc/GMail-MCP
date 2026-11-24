@@ -34,17 +34,23 @@ pub enum Error {
     Network,
 }
 
+impl Error {
+    /// A fixed, human-readable reason that is safe to log and to return to a client.
+    #[must_use]
+    pub const fn reason(self) -> &'static str {
+        match self {
+            Error::Denied(denied) => denied.reason(),
+            Error::Redirect => "the server answered with a redirect, which is never followed",
+            Error::TooLarge => "the response is larger than the size limit",
+            Error::Timeout => "the request timed out",
+            Error::Network => "the network request failed",
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Denied(denied) => f.write_str(denied.reason()),
-            Error::Redirect => {
-                f.write_str("the server answered with a redirect, which is never followed")
-            }
-            Error::TooLarge => f.write_str("the response is larger than the size limit"),
-            Error::Timeout => f.write_str("the request timed out"),
-            Error::Network => f.write_str("the network request failed"),
-        }
+        f.write_str(self.reason())
     }
 }
 

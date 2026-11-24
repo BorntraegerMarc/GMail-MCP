@@ -34,7 +34,9 @@ cargo test --locked
 cargo deny check bans licenses sources    # optional locally: brew install cargo-deny
 ```
 
-CI runs the same checks plus MSRV, docs, `zizmor` (workflow security lint), dependency review, CodeQL and OpenSSF Scorecard. The last three need a public repository and are skipped while it is private (ADR 0011). Every CI job runs on Linux; macOS is used only to build releases (ADR 0012).
+The Keychain tests (`tests/keychain_macos.rs`) are `#[ignore]`d, because they write to the Keychain of whoever runs them; CI runs them on a throwaway keychain, and you can run them yourself, on purpose, with `cargo test --locked --test keychain_macos -- --ignored`.
+
+CI runs the same checks plus MSRV, docs, `zizmor` (workflow security lint), dependency review, CodeQL and OpenSSF Scorecard. The last three need a public repository and are skipped while it is private (ADR 0011). Every CI job runs on Linux, except a narrow macOS job for the Keychain store and the release builds (ADR 0012).
 
 ## Comments and decisions
 
