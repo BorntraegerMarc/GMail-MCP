@@ -93,6 +93,19 @@ mod scan {
                     }
                 }
                 '"' => i = copy_string(&chars, i, &mut out),
+                // `br"..."` and `cr"..."` are raw byte and C strings. Without this arm their `r`
+                // follows a letter, so it is not taken for the start of a raw string, a quote
+                // inside would end an ordinary string, and code after a `//` inside would be
+                // dropped from every scan.
+                'b' | 'c'
+                    if at(i + 1) == Some('r')
+                        && !at(i.wrapping_sub(1))
+                            .is_some_and(|p| p.is_alphanumeric() || p == '_')
+                        && raw_string_start(&chars, i + 1).is_some() =>
+                {
+                    out.push(c);
+                    i = copy_raw_string(&chars, i + 1, &mut out);
+                }
                 'r' if !at(i.wrapping_sub(1)).is_some_and(|p| p.is_alphanumeric() || p == '_')
                     && raw_string_start(&chars, i).is_some() =>
                 {
@@ -215,6 +228,8 @@ fn the_comment_stripper_removes_prose_and_keeps_literals() {
             let url = "https://example.test/a//b"; // trailing comment
             let quote = '"'; let slash = '/';
             let raw = r#"raw "quoted" // not a comment"#;
+            let bytes = br#"byte "quoted" // not a comment"#; let c_str = cr#"c "quoted" /* not"#;
+            let after_raw_bytes = 1;
             x
         }
     "##;
@@ -234,6 +249,9 @@ fn the_comment_stripper_removes_prose_and_keeps_literals() {
         "'\"'",
         "'/'",
         "raw \"quoted\" // not a comment",
+        "byte \"quoted\" // not a comment",
+        "c \"quoted\" /* not",
+        "let after_raw_bytes = 1;",
         "fn f<'a>",
     ] {
         assert!(code.contains(kept), "{kept} was lost: {code}");
@@ -611,4 +629,16 @@ fn nothing_prints_and_only_the_log_module_writes_to_stderr() {
         .collect();
     let hits = find(&outside_log, &["stderr"]);
     assert!(hits.is_empty(), "stderr used outside src/log.rs: {hits:?}");
+}
+
+/// `auth` shows the consent address through the logger. If the announcer were anything else,
+/// the user would never see the address and the sign-in would wait for nothing.
+#[test]
+fn the_sign_in_shows_the_consent_address_through_the_logger() {
+    let files = sources();
+    let auth = files.iter().find(|f| f.name == "auth.rs").expect("auth.rs");
+    assert!(
+        auth.code.contains("&log::consent_url"),
+        "auth::run must pass log::consent_url as the announcer"
+    );
 }

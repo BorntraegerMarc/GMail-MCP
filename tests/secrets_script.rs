@@ -268,3 +268,93 @@ fn a_scan_root_that_is_a_symbolic_link_is_followed() {
     let output = run(Path::new(SCRIPT), &[&link], &[]);
     assert_eq!(output.status.code(), Some(1), "{}", text(&output));
 }
+
+// A verification script that says "nothing found" for a place it could not read gives a false
+// assurance, so every way of not reading something is an error (exit status 2).
+
+/// A name that is not a folder, such as a typo, is not a clean result.
+#[test]
+fn a_folder_that_was_asked_for_but_is_not_there_is_an_error() {
+    let scratch = Scratch::new("secrets-typo");
+    let real = scratch.dir("real");
+    let output = run(
+        Path::new(SCRIPT),
+        &[&real, &scratch.0.join("Downlods")],
+        &[],
+    );
+    let shown = text(&output);
+    assert_eq!(output.status.code(), Some(2), "{shown}");
+    assert!(shown.contains("CANNOT SCAN"), "{shown}");
+    assert!(
+        !shown.contains("Nothing found in:") || shown.contains("not everything"),
+        "{shown}"
+    );
+}
+
+/// The default places may be missing (not everyone has a `~/.config`): that is said, not hidden.
+#[test]
+fn a_default_place_that_is_not_there_is_skipped_and_said_so() {
+    let scratch = Scratch::new("secrets-default-missing");
+    let project = scratch.dir("project");
+    fs::create_dir_all(project.join("scripts")).unwrap();
+    let script = project.join("scripts/verify-no-plaintext-secrets.sh");
+    fs::copy(SCRIPT, &script).unwrap();
+    let (home, temp) = (scratch.dir("home"), scratch.dir("temp"));
+    let output = run(&script, &[], &[("HOME", &home), ("TMPDIR", &temp)]);
+    let shown = text(&output);
+    assert_eq!(output.status.code(), Some(0), "{shown}");
+    assert!(shown.contains("Skipped (not there)"), "{shown}");
+}
+
+/// A folder that cannot be read is not clean, and what was found elsewhere is still reported.
+#[test]
+fn a_folder_that_cannot_be_read_is_not_reported_as_clean() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let scratch = Scratch::new("secrets-unreadable");
+    let folder = scratch.dir("folder");
+    let locked = folder.join("locked");
+    fs::create_dir_all(&locked).unwrap();
+    fs::write(locked.join("note.txt"), refresh_token()).unwrap();
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o000)).unwrap();
+    // Whoever may read it anyway (root) cannot show this case.
+    let readable_anyway = fs::read_dir(&locked).is_ok();
+
+    let output = run(Path::new(SCRIPT), &[&folder], &[]);
+    let found_elsewhere = {
+        fs::write(folder.join("other.txt"), client_secret()).unwrap();
+        run(Path::new(SCRIPT), &[&folder], &[])
+    };
+
+    fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
+    if readable_anyway {
+        return;
+    }
+    let shown = text(&output);
+    assert_eq!(output.status.code(), Some(2), "{shown}");
+    assert!(shown.contains("COULD NOT READ PART OF"), "{shown}");
+    assert!(!shown.contains("Nothing found in:"), "{shown}");
+    let shown = text(&found_elsewhere);
+    assert_eq!(found_elsewhere.status.code(), Some(1), "{shown}");
+    assert!(
+        shown.contains("other.txt") && shown.contains("may be incomplete"),
+        "{shown}"
+    );
+}
+
+/// Without `find` or `grep` there is nothing to scan with, which is not a clean result either.
+#[test]
+fn a_missing_tool_is_an_error_not_a_clean_result() {
+    let scratch = Scratch::new("secrets-no-tools");
+    let folder = scratch.dir("folder");
+    let empty_path = scratch.dir("empty-path");
+    let output = Command::new("/bin/bash")
+        .arg(SCRIPT)
+        .arg(&folder)
+        .env("PATH", &empty_path)
+        .output()
+        .unwrap();
+    let shown = text(&output);
+    assert_eq!(output.status.code(), Some(2), "{shown}");
+    assert!(shown.contains("Cannot run"), "{shown}");
+}

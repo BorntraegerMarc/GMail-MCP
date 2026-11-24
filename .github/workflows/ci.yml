@@ -203,7 +203,7 @@ jobs:
           echo "$changed"
           # The store, the code that uses it (a type that is Copy on Linux may not be on macOS),
           # its test, the manifests, the lints, the toolchain pin and this workflow.
-          if grep -Eq '^(src/store(/|\.rs$)|src/auth\.rs$|tests/keychain_macos\.rs$|Cargo\.(toml|lock)$|clippy\.toml$|rust-toolchain\.toml$|\.github/workflows/ci\.yml$)' <<< "$changed"; then
+          if grep -Eq '^(src/store(/|\.rs$)|src/auth\.rs$|tests/(keychain_macos|store_policy)\.rs$|Cargo\.(toml|lock)$|clippy\.toml$|rust-toolchain\.toml$|\.github/workflows/ci\.yml$)' <<< "$changed"; then
             echo "macos=true" >> "$GITHUB_OUTPUT"
           else
             echo "macos=false" >> "$GITHUB_OUTPUT"
@@ -238,7 +238,7 @@ jobs:
           security list-keychains -d user -s "$keychain"
           security default-keychain -d user -s "$keychain"
       - run: cargo clippy --locked --all-targets -- -D warnings
-      - run: cargo test --locked --lib store::
+      - run: "cargo test --locked --lib store::"
       - run: cargo test --locked --test keychain_macos -- --ignored
       - run: cargo doc --locked --no-deps
         env:

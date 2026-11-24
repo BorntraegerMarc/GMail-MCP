@@ -1,5 +1,6 @@
 //! The one address that is not a static message in the logs: the Google consent page that the
-//! user is asked to open. The logger shows nothing else, so it cannot be used to print a token.
+//! user is asked to open. The logger shows only that page, with only the parameters the sign-in
+//! sets, which narrows what it can print; it does not inspect the parameter values.
 //! Why: docs/decisions/0015-sign-in-flow.md.
 
 use gmail_mcp::log::consent_text;
@@ -27,6 +28,8 @@ fn nothing_but_the_consent_page_is_shown() {
         "https://evilaccounts.google.com/o/oauth2/v2/auth",
         "https://accounts.google.com@example.test/o/oauth2/v2/auth",
         "https://user:pass@accounts.google.com/o/oauth2/v2/auth",
+        "https://SECRET-USER@accounts.google.com/o/oauth2/v2/auth",
+        "https://:SECRET-PASS@accounts.google.com/o/oauth2/v2/auth",
         "https://accounts.google.com:8443/o/oauth2/v2/auth",
         "http://accounts.google.com/o/oauth2/v2/auth",
         "https://accounts.google.com/",

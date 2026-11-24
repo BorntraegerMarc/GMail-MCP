@@ -746,6 +746,8 @@ fn a_client_file_replaces_the_stored_client() {
     let now = store.load().unwrap().unwrap();
     assert_eq!(now.client_id(), "file-client");
     assert_eq!(now.client_secret().expose(), "file-secret");
+    // Telling the user to delete the file is the program's part; deleting it is not.
+    assert!(file.path().is_file(), "auth deleted the client secret file");
 }
 
 /// A damaged item is replaced, but only by a sign-in that brings its own client: without a

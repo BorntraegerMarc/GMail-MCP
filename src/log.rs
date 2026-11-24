@@ -1,4 +1,4 @@
-//! Logging to stderr, with static messages only.
+//! Logging to stderr, with static messages only (one exception: [`consent_url`]).
 //!
 //! stdout carries the MCP protocol, so nothing in this crate prints to it, and clippy
 //! denies the print macros. Everything that is logged goes through this module to stderr.

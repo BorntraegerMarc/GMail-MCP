@@ -9,7 +9,7 @@ The server is not tied to one platform: Gmail calls and MCP handling are platfor
 
 ## Decision
 
-- Every CI job, including the whole test suite, runs on Linux.
+- Every CI job, including the whole test suite, runs on Linux, except the narrow macOS job for the credential store below.
 - Platform-specific code stays small and sits behind the credential-store interface (0006), so the rest of the crate builds and tests on Linux. On Linux, CI compiles the stub store and tests its fail-closed path.
 - The macOS store has its own narrow macOS job that runs only what Linux cannot: the lints on that code, its tests and its docs. It runs on pull requests that change that code, the manifests, the toolchain pin or the workflow, and on main. A store for another platform gets the same treatment when it exists.
 - macOS is otherwise used only to build release binaries, because the universal macOS binary needs it. Linux and Windows release builds wait until a credential store exists there.

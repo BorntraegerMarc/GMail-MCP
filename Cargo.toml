@@ -22,7 +22,7 @@ publish = false
 [dependencies]
 # PKCE, the consent URL and the code exchange (src/auth.rs), and the random token type behind
 # the delimiter nonce in src/text.rs. No HTTP-client feature: all traffic goes through the
-# egress guard in src/http.rs, which implements the library's `SyncHttpClient` trait.
+# egress guard in src/http.rs, through the library's `SyncHttpClient` trait (`auth::Guarded`).
 oauth2 = { version = "=5.0.0", default-features = false }
 # Reads Google's client secret file and encodes the credential-store record. Already in the
 # tree through `oauth2`, so it adds no crate. Used on `serde_json::Value` only: no derive macros.

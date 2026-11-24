@@ -33,7 +33,7 @@ What is left is what Google documents for desktop apps: the authorization-code f
 
 - The user copies a long address into a browser by hand. In return, no code in the crate starts a process.
 - Other programs on the machine can connect to the listener. They cannot complete the sign-in or end it early, because they do not know the `state`, and silent connections do not hold up the redirect. A program that floods the port faster than the listener serves it can still make the sign-in time out; the user runs it again. A program that can read the terminal output sees the `state`; that is the same user's account and is out of scope (SECURITY.md).
-- The authorization code is in the browser's address bar for a moment. It works once and only together with the PKCE verifier, which never leaves the process.
+- The authorization code is in the browser's address bar for a moment. It works once and only together with the PKCE verifier, which only this process and Google ever see.
 - Secrets sit in ordinary heap memory while `auth` runs and are not wiped afterwards.
 - If Google changes the consent address or the token endpoint, the constants and the route change with a code edit. The egress guard fails closed until then.
 

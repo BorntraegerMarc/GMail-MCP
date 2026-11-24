@@ -19,7 +19,7 @@ Secure secret storage is a platform feature, and it is the only platform-specifi
 - **Bring your own OAuth client.** No client id or secret is shipped in the repo. Rejected: a shipped secret, because it is extractable and would tie every user to one Google app.
 - **One-time import.** `gmail-mcp auth` reads Google's client secret JSON once into the store, tells the user to delete the file, and never deletes it itself. Later `auth` runs, such as signing in again after a token expires, reuse the stored client.
 - **A check for leftovers.** `scripts/verify-no-plaintext-secrets.sh` lists the files in the project, `~/.config`, the temporary folder and `~/Downloads` that look like Google OAuth secrets or downloads, by name or by text. It prints paths and never contents, and the maintainer runs it after `auth`.
-- **Secrets out of logs.** Secrets use a newtype with a redacted `Debug`, and logs go to stderr only, through one module with static messages. This is a guard, not a proof: error text returned to the client does not pass through the log module and must not contain secrets either (SECURITY.md).
+- **Secrets out of logs.** Secrets use a newtype with a redacted `Debug`, and logs go to stderr only, through one module with static messages (the one exception is the Google consent address the user must open, 0015). This is a guard, not a proof: error text returned to the client does not pass through the log module and must not contain secrets either (SECURITY.md).
 
 ## Consequences
 
