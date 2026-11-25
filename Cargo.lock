@@ -246,6 +246,7 @@ dependencies = [
 name = "gmail-mcp"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "oauth2",
  "proptest",
  "security-framework",

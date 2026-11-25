@@ -20,6 +20,10 @@ publish = false
 # version requirement or a feature set changes without its allowlist changing too.
 
 [dependencies]
+# Decodes the base64url bodies of Gmail messages (src/gmail.rs). Already in the tree twice: 0.22
+# through `oauth2` (the version pinned here) and 0.23 through `ureq`, so it adds no crate.
+# docs/decisions/0004-dependency-policy-and-libraries.md
+base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
 # PKCE, the consent URL and the code exchange (src/auth.rs), and the random token type behind
 # the delimiter nonce in src/text.rs. No HTTP-client feature: all traffic goes through the
 # egress guard in src/http.rs, through the library's `SyncHttpClient` trait (`auth::Guarded`).
