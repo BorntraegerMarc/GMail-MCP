@@ -21,7 +21,7 @@ Times are CET and come from the commit history.
 | 2026-11-23 | Dependabot raised the pinned toolchain from 1.99.0 to 1.100.0 | PR #2, `42b0aae` (16:08) |
 | 2026-11-24 | Phase 1 (policy core). The first commit (10:14) still had an optional draft builder; by 11:07 the design had become read-only (see phase 1) | PR #3, `13eb58e` (12:58) |
 | 2026-11-24 | Phase 2 (sign-in and credential store): feature commit 14:11, hardening after an independent review 14:59, last review findings 15:41. Pushed to `feat/auth` | `4b9b7a4` to `1caede0` |
-| 2026-11-25 | Pause after phase 2; this log and the roadmap written so work can resume from the repository alone | |
+| 2026-11-25 | Pause after phase 2; this log and the roadmap written so work can resume from the repository alone. The same day the plan was cut into a cheap beta v1 (chunks 0 to 3 in the roadmap) with a plan-first, green-light protocol for each session | |
 
 ## Phase 0 and 0b: scaffold, agent instructions, decision records
 
@@ -71,12 +71,21 @@ Measured facts (2026-11-24): Google's device flow does not allow Gmail scopes (A
 
 State at the hand-off: fmt, clippy (macOS and simulated Linux), rustdoc and the tests were green locally, and the repository was free of plaintext-secret patterns and personal data. Not verified: any CI run, the Keychain on a real machine, the live Google flow.
 
+## Decisions of 2026-11-25 (planning the beta)
+
+- **A cheap beta first.** The remaining work is cut into chunks (land phase 2; Gmail core; MCP server; live test) with a budget of about $14 in model spend (range $10 to $19) instead of one large phase 3 and phase 4. Everything polished moves to the roadmap's "After the beta" and backlog.
+- **`rmcp` stays.** A hand-written protocol layer was weighed: about 300 lines on `serde_json`, no tokio, no new crates (the tree would stay at 82), but it needs a new decision record and one exception in the print scan (`stdout` is banned in all of `src/`). The maintainer chose the official SDK as planned, knowing it adds tokio and about 72 crates and likely costs $5 to $8 for that chunk.
+- **No `config` subcommand.** The Claude Desktop JSON block is printed by a paste-and-run shell command in the README: printing a dynamic path from the binary would need another exception in the print scan.
+- **Working protocol.** A session that is asked to continue first presents a plan for a whole chunk and waits for the maintainer's go-ahead; it then works lean and stops after the chunk.
+- **Third-party Claude Desktop.** The maintainer's `claude_desktop_config.json` has no `mcpServers` entry (key names only were read, 2026-11-25), so where this deployment reads local MCP servers from is open until the live test.
+
 ## Pitfalls met so far
 
 Static scans (`tests/static_policy.rs`):
 
 - They read all of `src/`, `#[cfg(test)]` modules included, with comments removed (raw and byte strings handled). Keep these out of `src/`: process APIs such as `Command`, `stdout` or `stderr` outside `log.rs`, `.delete(` and `.put(`, plain `http://` literals (build them from parts in tests), `std::net`, `TcpListener` and `TcpStream` outside the two files that may use them, `connect(`, a second `bind(`, `cfg_attr`. Hostile samples belong in `tests/`, described by a comment in `src/`. The store's removal method is called `remove` for this reason.
 - A new direct dependency fails `tests/deps_policy.rs` until its allowlist is updated (macOS-only crates go in `MACOS_TABLE`). The test asks `cargo metadata`, so renamed, target-specific and build dependencies are caught too.
+- The token `stdout` is banned in all of `src/` (and `stderr` outside `log.rs`), so protocol output has to come from a dependency's transport. URL literals are allowed only for `https` and the two Google hosts (the consent page only in `policy.rs`); a URL assembled with `format!` is not seen by that scan.
 
 CI:
 
