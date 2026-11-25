@@ -554,7 +554,8 @@ fn no_secret_shows_up_in_any_text_the_flow_produces() {
     ];
     for text in texts {
         for sentinel in [CLIENT_SECRET, REFRESH, ACCESS, CODE] {
-            assert!(!text.contains(sentinel), "{text}");
+            // A static message: a failing assert must not print the text that leaked.
+            assert!(!text.contains(sentinel), "a secret shows in a debug print");
         }
     }
 }

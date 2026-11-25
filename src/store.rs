@@ -349,9 +349,19 @@ mod tests {
             format!("{:?}", credentials.refresh_token()),
             format!("{:#?}", Some(&credentials)),
         ] {
-            assert!(!shown.contains("client-secret"), "{shown}");
-            assert!(!shown.contains("refresh-token"), "{shown}");
-            assert!(shown.contains("redacted"), "{shown}");
+            // Static messages: a failing assert must not print the text that leaked.
+            assert!(
+                !shown.contains("client-secret"),
+                "a debug print shows the client secret"
+            );
+            assert!(
+                !shown.contains("refresh-token"),
+                "a debug print shows the refresh token"
+            );
+            assert!(
+                shown.contains("redacted"),
+                "a debug print has no redaction marker"
+            );
         }
     }
 

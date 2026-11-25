@@ -91,6 +91,7 @@ CI:
 
 - Quote any `run:` value that contains a colon followed by a space. Every new job joins `ci-success.needs` (a skipped job counts as passed). Never echo file names or other outside text unindented in a `run` step: a line that starts with `::` is a workflow command.
 - `macos-store` is enabled by a Linux job (`changes`) that diffs the pull request; runs on `main` and manual runs always include it.
+- CodeQL for Rust reports "Cleartext logging of sensitive information" (high severity) when an assert message interpolates text derived from a secret-named value, for example `assert!(!shown.contains("..."), "{shown}")` where `shown` is the debug output of a secret type. It does so in test code too, and the "CodeQL" results check then fails the pull request (five alerts on the first run of phase 2). Use static assert messages for anything derived from a token or secret; a label such as `("client secret", value)` keeps a failing case identifiable.
 
 Clippy (pedantic, with `unwrap`, `expect`, print macros and `dbg!` denied) cost iterations on: `needless_pass_by_value`, `unnecessary_wraps` (an item-level `allow` with a reason is fine in a test helper), `semicolon_if_nothing_returned`, unchecked `Duration` subtraction (use `saturating_sub`), file-extension comparison (use `Path::extension` with `eq_ignore_ascii_case`) and asserts without a message. Run clippy with `--all-targets`.
 

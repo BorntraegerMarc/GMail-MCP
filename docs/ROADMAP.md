@@ -22,7 +22,7 @@ If the next step is the maintainer's (merge, sign-in, live test), say so and sto
 |---|---|---|
 | 0, 0b | Scaffold, CI and security tooling, agent instructions, decision records | Merged: #1 (`b8923a0`), toolchain bump #2 (`42b0aae`) |
 | 1 | Policy core: the one scope, the egress guard, untrusted-content handling | Merged: #3 (`13eb58e`) |
-| 2 | Sign-in: `gmail-mcp auth`, the Keychain store, the scope refusal | Finished on branch `feat/auth` (last code commit `1caede0`, then docs). Its pull request is chunk 0 below; CI has never run on it |
+| 2 | Sign-in: `gmail-mcp auth`, the Keychain store, the scope refusal | Finished on branch `feat/auth`; pull request #4 is open (chunk 0 below). Its first CI run (2026-11-25) passed every job except the CodeQL results check, five alerts in test code, fixed in the next commit |
 | 3 | Gmail client, the four read tools, the MCP server | Not started. Split in two for the beta: 3a Gmail core (chunk 1) and 3b MCP server (chunk 2) |
 | 4 | Full README, SETUP.md, AUDIT.md, first release | After the beta, see "After the beta: v1.0" |
 
@@ -32,7 +32,7 @@ If the next step is the maintainer's (merge, sign-in, live test), say so and sto
 
 Size at the end of phase 2: about 4,300 lines in `src/` (a good part is unit tests), about 200 tests (4 `#[ignore]`d), 82 crates in the Linux dependency tree and 87 on macOS, 15 decision records.
 
-**Never exercised yet:** every CI job on the phase 2 branch (the MSRV job does not compile the macOS-only code at all; the 1.89 toolchain, `cargo-deny` and `zizmor` are not installed on the maintainer's machine, so CI is where they run first); `gmail-mcp auth` against Google; the Keychain code on a real keychain (its tests are `#[ignore]`d, CI runs them on a throwaway keychain); `release.yml`, not even as a dry run.
+**Never exercised yet:** `gmail-mcp auth` against Google; the Keychain code on the maintainer's own keychain (its tests are `#[ignore]`d locally); `release.yml`, not even as a dry run. **Exercised on 2026-11-25** (first CI run of pull request #4): every CI job passed, `macos-store` included, which ran the Keychain tests on a throwaway keychain, as did the 1.89 MSRV build (it does not compile the macOS-only code), `cargo-deny` and `zizmor`. Those three tools are still not installed on the maintainer's machine, so CI is where they run.
 
 ## Beta v1: the chunks
 
@@ -49,7 +49,7 @@ Budget is model spend at Bedrock global Sonnet 5.5 prices in lean sessions, plus
 
 - [ ] The pull request from `feat/auth` is merged into `main` and `ci-success` is green on `main`.
 
-The pull request from `feat/auth` was opened on 2026-11-25; the maintainer merges it when `ci-success` is green. An agent session reads the CI result and fixes what is red on the same branch. The first run of `cargo-deny`, `zizmor`, the 1.89 MSRV build and the macOS job `macos-store` is where surprises are most likely. Never weaken a check to get green; if a failure needs more than about 15 calls, stop and report. Done when: `git log origin/main` shows the phase 2 commit and CI on `main` is green.
+Pull request #4 was opened on 2026-11-25. Its first CI run passed every job except the CodeQL results check: five "cleartext logging" alerts, all in test code, where an assert message interpolated the debug output of a secret type. The next commit makes those messages static. When the re-run is green, the maintainer merges (squash). If a session is asked to continue before that: read CI (`pull_request_read`, methods `get_check_runs` and, for the alerts, the check run's annotations), fix what is red on the same branch, and never weaken a check to get green; a failure that needs more than about 15 calls means stop and report. Done when: `git log origin/main` shows the phase 2 commit and CI on `main` is green.
 
 ### Chunk 1: phase 3a, Gmail core (branch `feat/gmail-core`, from `main`)
 
@@ -60,7 +60,7 @@ Read first, and only this: the route table and limits in `src/policy.rs`, `text:
 1. **`src/gmail.rs`.** A `Transport` trait with one method (GET a path with the bearer token, return status and bytes); the production implementation sits on `http::Egress`, tests use a fake. Calls: labels; threads list (`q`, `maxResults`); a metadata read per hit (`format=metadata`, `metadataHeaders` Subject, From and Date); thread and message with `format=full`. All of these are already in the route table, so `policy.rs` does not change. Parse with `serde_json::Value`, use `get` and never index, never panic. Decode base64url with the `base64` crate that ADR 0004 plans and that is already in the tree: pin the version `oauth2` uses (`cargo tree -i base64`; a duplicate version only warns in `deny.toml`), padding optional. Walk the MIME parts with a depth limit (8) and a part limit (200). Prefer `text/plain`; HTML-only goes through `text::html_to_text`; attachments are filename, type and size only. Map the HTTP status to static error variants (401 leads to one refresh and one retry; 403 says "refused: is the Gmail API enabled and `gmail.readonly` granted?"; 404; 429; anything else). No Google response body in any message.
 2. **`src/session.rs`.** Credentials load lazily from `store::platform()` on first use. The refresh-token grant goes through the `oauth2` crate over `auth::Guarded` (copy how `auth::login` builds the client). Every token response passes `policy::check_grant`, and a response without a `scope` field fails closed (note it in the backlog: a live check shows whether Google omits it). The access token and its expiry stay in memory. Static messages: no credentials means "run `gmail-mcp auth`"; `invalid_grant` means "Google no longer accepts the stored sign-in; run `gmail-mcp auth` again (a consent screen in Testing status expires after 7 days)".
 3. **`src/tools.rs`.** `Tools` with `list_labels`, `search_threads(query, max_results)`, `get_thread(id)` and `get_message(id)`. Each validates its arguments (`ResourceId::parse`; `max_results` 1 to 25, default 10; a bound on the query length), calls Gmail, and returns one `String` built only through `text::Untrusted` (the `notice()` line first, every email-derived field through `wrap` or `wrap_body`, label names included), or a static `ToolError`. When `Untrusted::exhausted()` is true, stop and say so outside the delimiters.
-4. **Tests, only these.** Synthetic hostile fixtures through the fake transport (look-alike delimiters, invisible characters, an id containing `../`, deep MIME nesting, bad base64, missing fields); a fake token endpoint for the refresh path; one test that no raw hostile string appears outside a wrapper in any tool's output.
+4. **Tests, only these.** Assert messages that could include text derived from a token or secret must be static strings: CodeQL flags interpolating them as cleartext logging, tests included (see the development log). Synthetic hostile fixtures through the fake transport (look-alike delimiters, invisible characters, an id containing `../`, deep MIME nesting, bad base64, missing fields); a fake token endpoint for the refresh path; one test that no raw hostile string appears outside a wrapper in any tool's output.
 5. Close the chunk (protocol step 4), branch `feat/gmail-core`. The pull request title: "feat: Gmail client, token refresh and tool output (phase 3a)".
 
 ### Chunk 2: phase 3b, the MCP server (branch `feat/mcp-server`, from `main`)
@@ -119,6 +119,7 @@ Append one line per finished chunk: date, chunk, result, branch or commit, calls
 | Date | Chunk | Result | Branch or commit | Calls | Notes |
 |---|---|---|---|---|---|
 | 2026-11-25 | planning | Beta v1 plan written (this file) | `feat/auth` | | `rmcp` kept (maintainer's choice); chunks as above |
+| 2026-11-25 | 0 (partly) | First CI run read; 5 CodeQL alerts in tests fixed with static assert messages | `feat/auth`, commit after `cd71baa` | about 25 | everything else passed on the first run, `macos-store` included; merge still the maintainer's |
 
 ## After the beta: v1.0
 

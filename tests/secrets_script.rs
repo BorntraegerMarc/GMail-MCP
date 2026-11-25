@@ -103,12 +103,12 @@ fn a_folder_without_secrets_passes() {
 #[test]
 fn each_kind_of_secret_is_reported_by_path_and_never_printed() {
     let secrets = [
-        client_secret(),
-        refresh_token(),
-        access_token(),
-        client_id(),
+        ("client secret", client_secret()),
+        ("refresh token", refresh_token()),
+        ("access token", access_token()),
+        ("client id", client_id()),
     ];
-    for secret in secrets {
+    for (kind, secret) in secrets {
         let scratch = Scratch::new("secrets-content");
         let folder = scratch.dir("found");
         let file = folder.join("innocent-name.txt");
@@ -121,7 +121,7 @@ fn each_kind_of_secret_is_reported_by_path_and_never_printed() {
         let output = run(Path::new(SCRIPT), &[&folder], &[]);
 
         let shown = text(&output);
-        assert_eq!(output.status.code(), Some(1), "{secret}: {shown}");
+        assert_eq!(output.status.code(), Some(1), "{kind}: {shown}");
         assert!(shown.contains(file.to_str().unwrap()), "{shown}");
         assert!(
             !shown.contains(&secret),
