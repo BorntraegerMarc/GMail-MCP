@@ -62,7 +62,7 @@ jobs:
   test:
     name: test
     # The whole suite runs on Linux. Code that only compiles on one platform (the macOS
-    # credential store, phase 2) gets its own narrow job on that platform when it lands (ADR 0012).
+    # credential store) has its own narrow job on that platform, `macos-store` below (ADR 0012).
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -169,12 +169,90 @@ jobs:
           # Licenses are enforced by cargo-deny.
           license-check: false
 
+  # Decides whether the macOS-only credential store needs its own run (ADR 0012). A pull request
+  # that touches nothing the store depends on skips the macOS job; main and manual runs always
+  # run it. A skipped job counts as passed in `ci-success`, so this is safe to skip.
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      macos: ${{ steps.diff.outputs.macos }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The diff needs the commits on both sides of the pull request.
+          fetch-depth: 0
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "Not a pull request: the macOS job runs."
+            echo "macos=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # No rename detection, so a moved file lists its old path too.
+          changed="$(git diff --name-only --no-renames "$BASE...$HEAD")"
+          echo "Changed files:"
+          # Indented, so that a file name cannot start a workflow command (a line that begins with `::`).
+          printf '%s\n' "$changed" | sed 's/^/    /'
+          # The store, the code that uses it (a type that is Copy on Linux may not be on macOS),
+          # its test, the manifests, the lints, the toolchain pin and this workflow.
+          if grep -Eq '^(src/store(/|\.rs$)|src/auth\.rs$|tests/(keychain_macos|store_policy)\.rs$|Cargo\.(toml|lock)$|clippy\.toml$|rust-toolchain\.toml$|\.github/workflows/ci\.yml$)' <<< "$changed"; then
+            echo "macos=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "macos=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Linux never compiles the macOS Keychain store, so a break in it, a lint included, shows up
+  # only here. The tests write to a keychain, so they run on a throwaway one (ADR 0012).
+  macos-store:
+    name: macos-store
+    needs: changes
+    if: needs.changes.outputs.macos == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain (rust-toolchain.toml)
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      - name: Use a throwaway keychain
+        run: |
+          keychain="$RUNNER_TEMP/gmail-mcp-test.keychain-db"
+          password="$(uuidgen)"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -d user -s "$keychain"
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: "cargo test --locked --lib store::"
+      - run: cargo test --locked --test keychain_macos -- --ignored
+      # The script is for macOS users; its tests need the BSD find and grep that only this job has.
+      - run: cargo test --locked --test secrets_script
+      - run: cargo doc --locked --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
   # The single status check that rulesets require. `skipped` is fine (dependency-review
   # on pushes); anything else from any job fails it.
   ci-success:
     name: ci-success
     if: ${{ always() }}
-    needs: [fmt, clippy, test, msrv, doc, deny, zizmor, dependency-review]
+    needs: [fmt, clippy, test, msrv, doc, deny, zizmor, dependency-review, changes, macos-store]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}

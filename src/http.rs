@@ -34,17 +34,23 @@ pub enum Error {
     Network,
 }
 
+impl Error {
+    /// A fixed, human-readable reason that is safe to log and to return to a client.
+    #[must_use]
+    pub const fn reason(self) -> &'static str {
+        match self {
+            Error::Denied(denied) => denied.reason(),
+            Error::Redirect => "the server answered with a redirect, which is never followed",
+            Error::TooLarge => "the response is larger than the size limit",
+            Error::Timeout => "the request timed out",
+            Error::Network => "the network request failed",
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::Denied(denied) => f.write_str(denied.reason()),
-            Error::Redirect => {
-                f.write_str("the server answered with a redirect, which is never followed")
-            }
-            Error::TooLarge => f.write_str("the response is larger than the size limit"),
-            Error::Timeout => f.write_str("the request timed out"),
-            Error::Network => f.write_str("the network request failed"),
-        }
+        f.write_str(self.reason())
     }
 }
 
@@ -222,6 +228,42 @@ mod tests {
         (url, handle)
     }
 
+    /// What a client sent: the head and as many body bytes as its `Content-Length` announces.
+    fn read_request(stream: &mut TcpStream) -> Vec<u8> {
+        let mut seen = Vec::new();
+        let mut buf = [0_u8; 1024];
+        loop {
+            if let Some(end) = seen.windows(4).position(|window| window == b"\r\n\r\n") {
+                let head = String::from_utf8_lossy(&seen[..end]).to_ascii_lowercase();
+                let wanted = head
+                    .lines()
+                    .find_map(|line| line.strip_prefix("content-length:"))
+                    .and_then(|value| value.trim().parse::<usize>().ok())
+                    .unwrap_or(0);
+                if seen.len() >= end + 4 + wanted {
+                    return seen;
+                }
+            }
+            match stream.read(&mut buf) {
+                Ok(0) | Err(_) => return seen,
+                Ok(n) => seen.extend_from_slice(&buf[..n]),
+            }
+        }
+    }
+
+    /// Like `serve_once`, but hands back what the client sent.
+    fn serve_capturing(reply: Vec<u8>) -> (String, JoinHandle<Vec<u8>>) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = local_url(listener.local_addr().unwrap());
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let request = read_request(&mut stream);
+            let _ = stream.write_all(&reply);
+            request
+        });
+        (url, handle)
+    }
+
     fn response_with(status_line: &str, headers: &str, body: &[u8]) -> Vec<u8> {
         let mut reply =
             format!("HTTP/1.1 {status_line}\r\n{headers}Connection: close\r\n\r\n").into_bytes();
@@ -281,6 +323,49 @@ mod tests {
 
         assert_eq!(result.unwrap_err(), Error::TooLarge);
         server.join().unwrap();
+    }
+
+    /// The token call is the one request with a body. Nothing else here puts a body on the wire,
+    /// so this pins what the OAuth exchange really sends: the method, the two headers and the
+    /// exact length and bytes of the form.
+    #[test]
+    fn a_form_post_goes_out_as_one_well_formed_request() {
+        let (url, server) = serve_capturing(response_with(
+            "200 OK",
+            "Content-Type: application/json\r\nContent-Length: 2\r\n",
+            b"{}",
+        ));
+        let body = b"grant_type=authorization_code&code=abc%2Fdef".to_vec();
+        let request = Request::builder()
+            .method(Method::POST)
+            .uri(&url)
+            .header(header::ACCEPT, "application/json")
+            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
+            .body(body.clone())
+            .unwrap();
+
+        let response = execute(&local_agent(Duration::from_secs(5)), request, 1024).unwrap();
+
+        assert_eq!(response.status().as_u16(), 200);
+        let sent = String::from_utf8(server.join().unwrap()).unwrap();
+        let lowered = sent.to_ascii_lowercase();
+        assert!(sent.starts_with("POST / HTTP/1.1\r\n"), "{sent}");
+        assert!(
+            lowered.contains("\r\naccept: application/json\r\n"),
+            "{sent}"
+        );
+        assert!(
+            lowered.contains("\r\ncontent-type: application/x-www-form-urlencoded\r\n"),
+            "{sent}"
+        );
+        assert!(
+            lowered.contains(&format!("\r\ncontent-length: {}\r\n", body.len())),
+            "{sent}"
+        );
+        assert!(
+            sent.ends_with("\r\n\r\ngrant_type=authorization_code&code=abc%2Fdef"),
+            "{sent}"
+        );
     }
 
     #[test]

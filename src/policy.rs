@@ -29,6 +29,21 @@ pub const SCOPE_READONLY: &str = "https://www.googleapis.com/auth/gmail.readonly
 // why: docs/decisions/0014-read-only-no-composing.md
 pub const SCOPES: &[&str] = &[SCOPE_READONLY];
 
+/// Host of Google's consent page, which the user's browser opens. The server never connects to
+/// it, so it has no route in the table below: it is named only so that the one URL that
+/// points to it can be checked before it is shown to the user.
+// why: docs/decisions/0003-single-egress-allowlist.md (excluded hosts)
+pub const HOST_CONSENT: &str = "accounts.google.com";
+
+/// The consent page where the user approves the scope. The user opens it; the code never does.
+// why: docs/decisions/0015-sign-in-flow.md
+pub const CONSENT_URL: &str = "https://accounts.google.com/o/oauth2/v2/auth";
+
+/// Google's token endpoint, the one `POST` the egress guard allows. The sign-in flow uses this
+/// address and never one read from the client secret file, which names its own endpoints.
+// why: docs/decisions/0015-sign-in-flow.md
+pub const TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
+
 /// The only two HTTP methods this server uses. There is deliberately no variant for the
 /// methods that delete or replace data: adding one is a policy change, not a refactor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -212,6 +227,43 @@ pub const MAX_FIELD_CHARS: usize = 1_000;
 // why: docs/decisions/0013-hand-written-html-converter.md
 pub const MAX_HTML_BYTES: usize = 1024 * 1024;
 
+/// How long `auth` waits for the user to finish on the consent page. The user may have to
+/// find the right Google account and read the screen, so this is minutes, not seconds.
+// why: docs/decisions/0015-sign-in-flow.md
+pub const LOGIN_TIMEOUT: Duration = Duration::from_secs(5 * 60);
+
+/// Time one connection to the sign-in listener may take, from accept to the end of the
+/// request. Browsers sometimes open a connection ahead of time and say nothing on it; such a
+/// connection, or a hostile one, is dropped after this long, and in the meantime the other
+/// connections are served.
+// why: docs/decisions/0015-sign-in-flow.md
+pub const REDIRECT_CONNECTION_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// Longest request head the sign-in listener reads before it acts on the first line. The
+/// redirect is a short `GET` line, but the browser adds its cookies for `127.0.0.1`, which go to
+/// every port, so a longer head is not a reason to refuse the request.
+pub const MAX_REDIRECT_HEAD_BYTES: usize = 8 * 1024;
+
+/// How many connections the sign-in listener keeps at once. A new one pushes the oldest out, so a
+/// program that opens silent connections cannot keep the browser's real redirect waiting.
+// why: docs/decisions/0015-sign-in-flow.md
+pub const MAX_REDIRECT_CONNECTIONS: usize = 16;
+
+/// Time allowed to write the listener's short answer, so a visitor that never reads cannot hold
+/// the listener.
+pub const REDIRECT_REPLY_TIMEOUT: Duration = Duration::from_secs(1);
+
+/// Longest client secret file `auth` reads. Google's file is well under 1 KiB; the cap only
+/// stops `--credentials` from reading an endless file.
+pub const MAX_CLIENT_FILE_BYTES: usize = 64 * 1024;
+
+/// Longest credential-store record that is decoded.
+pub const MAX_RECORD_BYTES: usize = 16 * 1024;
+
+/// Longest client id, client secret, refresh token or authorization code accepted. Google's
+/// are a few hundred characters at most; the cap bounds what goes into a request body.
+pub const MAX_CREDENTIAL_CHARS: usize = 2048;
+
 /// Why [`authorize`] refused a request. Every message is static: errors travel back to the
 /// client and into logs, so they must never contain request data.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -305,6 +357,60 @@ pub fn authorize(method: &str, url: &str) -> Result<(), Denied> {
     } else {
         Err(Denied::Query)
     }
+}
+
+/// Why a grant of scopes was refused. Every message is static, like the other errors here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GrantError {
+    /// Google did not say which scopes it granted, so the grant cannot be checked.
+    Unreported,
+    /// A scope other than the read-only one was granted.
+    Broader,
+}
+
+impl GrantError {
+    /// A fixed, human-readable reason that is safe to log and to return to a client.
+    #[must_use]
+    pub const fn reason(self) -> &'static str {
+        match self {
+            GrantError::Unreported => {
+                "Google did not report which scopes it granted, so nothing was stored; remove this app's access in your Google account and sign in again"
+            }
+            GrantError::Broader => {
+                "Google granted a scope other than gmail.readonly, so nothing was stored; remove this app's access in your Google account and sign in again"
+            }
+        }
+    }
+}
+
+impl fmt::Display for GrantError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.reason())
+    }
+}
+
+impl std::error::Error for GrantError {}
+
+/// Checks that `granted` holds the one scope the server requests and nothing else.
+///
+/// An earlier consent for the same OAuth client can hand back more scopes than a request
+/// names, and the server must never keep a token that can do more than read. A list that is
+/// empty counts as unreported: it cannot be checked, so it is not trusted. Repeating the
+/// read-only scope is harmless.
+///
+/// # Errors
+///
+/// [`GrantError::Unreported`] for an empty list, [`GrantError::Broader`] if any entry is
+/// not exactly [`SCOPE_READONLY`].
+// why: docs/decisions/0014-read-only-no-composing.md
+pub fn check_grant<S: AsRef<str>>(granted: &[S]) -> Result<(), GrantError> {
+    if granted.is_empty() {
+        return Err(GrantError::Unreported);
+    }
+    if granted.iter().any(|scope| scope.as_ref() != SCOPE_READONLY) {
+        return Err(GrantError::Broader);
+    }
+    Ok(())
 }
 
 /// Whether `header` (any letter case) may be set on a request.
@@ -455,6 +561,59 @@ mod tests {
             SCOPE_READONLY,
             "https://www.googleapis.com/auth/gmail.readonly"
         );
+    }
+
+    /// The token address the sign-in flow uses must be exactly the one route the guard
+    /// allows for `POST`, or the code exchange would be refused at run time.
+    #[test]
+    fn the_token_url_is_the_one_post_route() {
+        assert_eq!(authorize("POST", TOKEN_URL), Ok(()));
+        assert_eq!(
+            authorize("GET", TOKEN_URL),
+            Err(Denied::Route),
+            "the token endpoint is POST only"
+        );
+    }
+
+    /// The consent page is opened by the user's browser. The server never connects to it, so
+    /// the guard must refuse it, and the constant must name exactly [`HOST_CONSENT`].
+    #[test]
+    fn the_consent_page_is_named_but_never_routable() {
+        assert!(CONSENT_URL.starts_with(&format!("https://{HOST_CONSENT}/")));
+        assert_eq!(authorize("GET", CONSENT_URL), Err(Denied::Host));
+        assert_eq!(authorize("POST", CONSENT_URL), Err(Denied::Host));
+        assert!(!ROUTES.iter().any(|route| route.host == HOST_CONSENT));
+    }
+
+    #[test]
+    fn a_grant_of_exactly_the_read_only_scope_is_accepted() {
+        assert_eq!(check_grant(&[SCOPE_READONLY]), Ok(()));
+        assert_eq!(check_grant(&[SCOPE_READONLY, SCOPE_READONLY]), Ok(()));
+        assert_eq!(check_grant(&[SCOPE_READONLY.to_owned()]), Ok(()));
+    }
+
+    #[test]
+    fn a_grant_that_cannot_be_checked_is_refused() {
+        let none: [&str; 0] = [];
+        assert_eq!(check_grant(&none), Err(GrantError::Unreported));
+    }
+
+    /// The look-alikes of the scope URL itself are in `tests/store_policy.rs`: this file is
+    /// scanned for scope URLs, so a hostile variant of one cannot be written here.
+    #[test]
+    fn a_grant_with_anything_else_is_refused() {
+        for other in ["openid", "email", "", " ", "gmail.readonly"] {
+            assert_eq!(
+                check_grant(&[SCOPE_READONLY, other]),
+                Err(GrantError::Broader),
+                "{other:?} slipped through next to the read-only scope"
+            );
+            assert_eq!(
+                check_grant(&[other]),
+                Err(GrantError::Broader),
+                "{other:?} slipped through alone"
+            );
+        }
     }
 
     /// The route table, pinned. A new route, method, path shape or query parameter changes

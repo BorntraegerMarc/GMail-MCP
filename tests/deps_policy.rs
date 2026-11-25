@@ -12,9 +12,14 @@
 //! deliberately not compared, so Dependabot's version bumps stay mergeable.
 //! Why: docs/decisions/0004-dependency-policy-and-libraries.md.
 
+/// The one platform-specific dependency table the project uses, for the macOS Keychain crate.
+/// Other platforms compile a stub store, so that crate is not built there.
+const MACOS_TABLE: &str = "target.'cfg(target_os = \"macos\")'.dependencies";
+
 /// A direct dependency the project has agreed to depend on.
 struct Allowed {
-    /// The manifest table: `dependencies`, `dev-dependencies` or `build-dependencies`.
+    /// The manifest table: `dependencies`, `dev-dependencies`, `build-dependencies` or
+    /// [`MACOS_TABLE`].
     table: &'static str,
     name: &'static str,
     default_features: bool,
@@ -33,9 +38,21 @@ const ALLOWED: &[Allowed] = &[
     },
     Allowed {
         table: "dependencies",
+        name: "serde_json",
+        default_features: false,
+        features: &["std"],
+    },
+    Allowed {
+        table: "dependencies",
         name: "ureq",
         default_features: false,
         features: &["rustls"],
+    },
+    Allowed {
+        table: MACOS_TABLE,
+        name: "security-framework",
+        default_features: false,
+        features: &[],
     },
     Allowed {
         table: "dev-dependencies",
@@ -63,9 +80,11 @@ mod manifest {
 
     /// Reads the dependency tables of `Cargo.toml`. It understands exactly the two forms this
     /// project uses, `name = "=x.y.z"` and a one-line inline table with `version`,
-    /// `default-features` and `features`, and refuses everything else (sub-tables, `git`,
-    /// `path`, `registry`, `package`, `optional`, `workspace`, target-specific tables), so
-    /// that a new form cannot slip past the allowlist unnoticed. Extend it deliberately.
+    /// `default-features` and `features`, and refuses the forms it recognises as something
+    /// else (sub-tables, `git`, `path`, `registry`, `package`, `optional`, `workspace`, and a
+    /// target-specific table other than the macOS one). It is a hand-written reader, so it only
+    /// sees what it was written to see; `cargo_itself_sees_exactly_the_allowlisted_direct_dependencies`
+    /// below asks Cargo, which reads every form, and is the complete check.
     pub fn declared() -> Vec<Declared> {
         let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
         let text = fs::read_to_string(path).expect("Cargo.toml can be read");
@@ -87,7 +106,8 @@ mod manifest {
                         || matches!(
                             header,
                             "dependencies" | "dev-dependencies" | "build-dependencies"
-                        ),
+                        )
+                        || header == super::MACOS_TABLE,
                     "Cargo.toml line {}: the dependency table [{header}] is a form tests/deps_policy.rs does not read; \
                      extend the parser deliberately before using it",
                     number + 1
@@ -98,7 +118,8 @@ mod manifest {
             if matches!(
                 table.as_str(),
                 "dependencies" | "dev-dependencies" | "build-dependencies"
-            ) {
+            ) || table == super::MACOS_TABLE
+            {
                 out.push(parse(&table, line, number + 1));
             }
         }
@@ -261,4 +282,85 @@ fn no_cargo_configuration_overrides_the_sources() {
     for name in [".cargo/config.toml", ".cargo/config", "vendor"] {
         assert!(!root.join(name).exists(), "{name} is not allowed");
     }
+}
+
+/// What Cargo itself says the direct dependencies are. The reader above only sees the forms it
+/// knows, so a dependency declared another way (a dotted key, a quoted table name, a `dependencies`
+/// key inside a `[target.x]` table) would go unseen by it. Cargo reads every form.
+#[test]
+fn cargo_itself_sees_exactly_the_allowlisted_direct_dependencies() {
+    use std::collections::BTreeSet;
+
+    let output = std::process::Command::new(env!("CARGO"))
+        .args([
+            "metadata",
+            "--no-deps",
+            "--format-version",
+            "1",
+            "--offline",
+        ])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .output()
+        .expect("cargo can be run");
+    assert!(
+        output.status.success(),
+        "cargo metadata failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let metadata: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("cargo metadata prints JSON");
+    let package = &metadata["packages"][0];
+
+    let mut seen = BTreeSet::new();
+    for dependency in package["dependencies"].as_array().expect("a list") {
+        let name = dependency["name"].as_str().expect("a name");
+        let table = match (dependency["kind"].as_str(), dependency["target"].as_str()) {
+            (None, None) => "dependencies",
+            (Some("dev"), None) => "dev-dependencies",
+            (Some("build"), None) => "build-dependencies",
+            (None, Some("cfg(target_os = \"macos\")")) => MACOS_TABLE,
+            other => {
+                panic!("{name}: a dependency kind or target the allowlist does not know: {other:?}")
+            }
+        };
+        let allowed = ALLOWED
+            .iter()
+            .find(|a| a.table == table && a.name == name)
+            .unwrap_or_else(|| {
+                panic!("{name} ({table}) is a direct dependency but is not allowlisted")
+            });
+        assert_eq!(
+            dependency["uses_default_features"].as_bool(),
+            Some(allowed.default_features),
+            "{name}: default-features differs from the allowlist"
+        );
+        let mut features: Vec<&str> = dependency["features"]
+            .as_array()
+            .expect("a list")
+            .iter()
+            .filter_map(serde_json::Value::as_str)
+            .collect();
+        features.sort_unstable();
+        assert_eq!(
+            features, allowed.features,
+            "{name}: the enabled features differ"
+        );
+        assert_eq!(dependency["optional"], false, "{name} is optional");
+        assert!(dependency["rename"].is_null(), "{name} is renamed");
+        assert!(dependency["path"].is_null(), "{name} comes from a path");
+        assert_eq!(
+            dependency["source"].as_str(),
+            Some("registry+https://github.com/rust-lang/crates.io-index"),
+            "{name} does not come from crates.io"
+        );
+        seen.insert((table.to_owned(), name.to_owned()));
+    }
+    let allowed: BTreeSet<(String, String)> = ALLOWED
+        .iter()
+        .map(|a| (a.table.to_owned(), a.name.to_owned()))
+        .collect();
+    assert_eq!(
+        seen, allowed,
+        "Cargo's direct dependencies (left) differ from the allowlist (right)"
+    );
 }

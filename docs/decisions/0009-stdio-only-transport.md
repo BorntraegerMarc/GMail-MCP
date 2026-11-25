@@ -1,7 +1,7 @@
 # 0009. MCP over stdio only, no network-exposed endpoint
 
 - Status: Accepted (2026-11-23)
-- Implementation: Not implemented yet; only the scaffold exists. Planned: the OAuth loopback listener in phase 2; the stdio transport (`rmcp` with its stdio transport only) in phase 3.
+- Implementation: Partly in place. The OAuth loopback listener is in `src/auth.rs` (phase 2, 0015); `tests/static_policy.rs` checks that it binds `127.0.0.1` in one place and that nothing else binds a listener. Planned: the stdio transport (`rmcp` with its stdio transport only) in phase 3.
 
 ## Context
 

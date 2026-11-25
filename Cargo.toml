@@ -20,11 +20,21 @@ publish = false
 # version requirement or a feature set changes without its allowlist changing too.
 
 [dependencies]
-# Used for its random token type (the delimiter nonce in src/text.rs); the OAuth flow itself
-# arrives with `auth`. No HTTP-client feature: all traffic must go through src/http.rs.
+# PKCE, the consent URL and the code exchange (src/auth.rs), and the random token type behind
+# the delimiter nonce in src/text.rs. No HTTP-client feature: all traffic goes through the
+# egress guard in src/http.rs, through the library's `SyncHttpClient` trait (`auth::Guarded`).
 oauth2 = { version = "=5.0.0", default-features = false }
+# Reads Google's client secret file and encodes the credential-store record. Already in the
+# tree through `oauth2`, so it adds no crate. Used on `serde_json::Value` only: no derive macros.
+serde_json = { version = "=1.0.154", default-features = false, features = ["std"] }
 # Blocking HTTPS client behind the egress guard (src/http.rs); TLS through rustls.
 ureq = { version = "=3.5.2", default-features = false, features = ["rustls"] }
+
+# The macOS Keychain store (src/store/keychain.rs), used directly instead of `keyring`
+# (docs/decisions/0006-credentials-in-os-credential-store.md). Other platforms compile a
+# fail-closed stub, so this crate is not built there.
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = { version = "=3.7.0", default-features = false }
 
 [dev-dependencies]
 # Property tests on untrusted-input handling.

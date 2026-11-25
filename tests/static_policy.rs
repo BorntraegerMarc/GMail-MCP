@@ -93,6 +93,19 @@ mod scan {
                     }
                 }
                 '"' => i = copy_string(&chars, i, &mut out),
+                // `br"..."` and `cr"..."` are raw byte and C strings. Without this arm their `r`
+                // follows a letter, so it is not taken for the start of a raw string, a quote
+                // inside would end an ordinary string, and code after a `//` inside would be
+                // dropped from every scan.
+                'b' | 'c'
+                    if at(i + 1) == Some('r')
+                        && !at(i.wrapping_sub(1))
+                            .is_some_and(|p| p.is_alphanumeric() || p == '_')
+                        && raw_string_start(&chars, i + 1).is_some() =>
+                {
+                    out.push(c);
+                    i = copy_raw_string(&chars, i + 1, &mut out);
+                }
                 'r' if !at(i.wrapping_sub(1)).is_some_and(|p| p.is_alphanumeric() || p == '_')
                     && raw_string_start(&chars, i).is_some() =>
                 {
@@ -185,6 +198,10 @@ fn the_scan_reads_the_real_source_files() {
         "policy.rs",
         "log.rs",
         "text.rs",
+        "auth.rs",
+        "cli.rs",
+        "store.rs",
+        "store/keychain.rs",
     ] {
         assert!(
             names.contains(&expected),
@@ -211,6 +228,8 @@ fn the_comment_stripper_removes_prose_and_keeps_literals() {
             let url = "https://example.test/a//b"; // trailing comment
             let quote = '"'; let slash = '/';
             let raw = r#"raw "quoted" // not a comment"#;
+            let bytes = br#"byte "quoted" // not a comment"#; let c_str = cr#"c "quoted" /* not"#;
+            let after_raw_bytes = 1;
             x
         }
     "##;
@@ -230,6 +249,9 @@ fn the_comment_stripper_removes_prose_and_keeps_literals() {
         "'\"'",
         "'/'",
         "raw \"quoted\" // not a comment",
+        "byte \"quoted\" // not a comment",
+        "c \"quoted\" /* not",
+        "let after_raw_bytes = 1;",
         "fn f<'a>",
     ] {
         assert!(code.contains(kept), "{kept} was lost: {code}");
@@ -348,8 +370,12 @@ fn the_only_oauth_scope_is_readonly() {
     }
 }
 
-/// Every URL written out in the source names an allowlisted host, over https. The scope URL
-/// names `www.googleapis.com`, but only as an identifier, never as a place to connect to.
+/// Every URL written out in the source as a literal names an allowlisted host, over https. An
+/// address assembled at run time (`format!`, `concat!`) is not seen; the listener's redirect
+/// address is one, and its host is pinned by the bind check below instead. The scope URL
+/// names `www.googleapis.com`, but only as an identifier, never as a place to connect to. The
+/// consent page is the one other address: the user's browser opens it, the code never does,
+/// and it may be written only in `policy.rs`, where the egress guard also refuses it.
 #[test]
 fn every_url_literal_in_the_source_is_allowlisted() {
     const HOSTS: &[&str] = &["oauth2.googleapis.com", "gmail.googleapis.com"];
@@ -383,8 +409,11 @@ fn every_url_literal_in_the_source_is_allowlisted() {
             );
             let scope_identifier =
                 host == "www.googleapis.com" && after_host.starts_with("/auth/gmail.readonly\"");
+            let consent_page = host == "accounts.google.com"
+                && file.name == "policy.rs"
+                && after_host.starts_with("/o/oauth2/v2/auth\"");
             assert!(
-                HOSTS.contains(&host.as_str()) || scope_identifier,
+                HOSTS.contains(&host.as_str()) || scope_identifier || consent_page,
                 "{}: URL with a host that is not allowlisted: {scheme}://{host}",
                 file.name
             );
@@ -393,9 +422,10 @@ fn every_url_literal_in_the_source_is_allowlisted() {
     assert!(seen >= 4, "expected to see the policy's URLs, saw {seen}");
 }
 
-/// Sockets, HTTP and TLS clients, and child processes. Only the egress module may touch the
-/// network; nothing may start a process, which could run a network tool and bypass the guard.
-/// (The OAuth loopback listener joins the egress module in the list when `auth` lands.)
+/// Sockets, HTTP and TLS clients, and child processes. Only the egress module may dial out;
+/// the OAuth loopback listener in `auth.rs` is the one other place that may touch sockets, and
+/// only to accept connections. Nothing may start a process, which could run a network tool and
+/// bypass the guard.
 #[test]
 fn network_and_process_apis_are_confined_to_the_egress_module() {
     const NETWORK: &[&str] = &[
@@ -406,6 +436,9 @@ fn network_and_process_apis_are_confined_to_the_egress_module() {
         "TcpListener",
         "UdpSocket",
         "ToSocketAddrs",
+        "to_socket_addrs",
+        "lookup_host",
+        "net::*",
         "UnixStream",
         "UnixListener",
         "os::unix::net",
@@ -420,6 +453,9 @@ fn network_and_process_apis_are_confined_to_the_egress_module() {
         "oauth2::ureq",
         "oauth2::curl",
     ];
+    /// What the listener needs: the socket types, to accept and answer. Everything else in
+    /// `NETWORK` stays forbidden in `auth.rs`.
+    const LISTENER: &[&str] = &["std::net", "TcpStream", "TcpListener"];
     const PROCESS: &[&str] = &["Command", "std::process::Command"];
 
     let files = sources();
@@ -431,14 +467,75 @@ fn network_and_process_apis_are_confined_to_the_egress_module() {
             code: file.code.clone(),
         })
         .collect();
-    let hits = find(&outside_egress, NETWORK);
-    assert!(
-        hits.is_empty(),
-        "network APIs outside src/http.rs: {hits:?}"
-    );
+    for file in &outside_egress {
+        let allowed: &[&str] = if file.name == "auth.rs" {
+            LISTENER
+        } else {
+            &[]
+        };
+        let forbidden: Vec<&str> = NETWORK
+            .iter()
+            .copied()
+            .filter(|token| !allowed.contains(token))
+            .collect();
+        let hits = find(std::slice::from_ref(file), &forbidden);
+        assert!(
+            hits.is_empty(),
+            "network APIs outside src/http.rs (and the listener in src/auth.rs): {hits:?}"
+        );
+    }
 
     let hits = find(&files, PROCESS);
     assert!(hits.is_empty(), "process APIs in the source: {hits:?}");
+}
+
+/// The listener accepts and never dials out, and it listens on the loopback address only, so
+/// other machines cannot connect to it. One `bind`, with `127.0.0.1` in the call itself.
+/// Why: docs/decisions/0003-single-egress-allowlist.md, docs/decisions/0009-stdio-only-transport.md.
+#[test]
+fn the_listener_binds_the_loopback_address_only_and_never_dials_out() {
+    const DIALLING_OUT: &[&str] = &["connect(", "connect_timeout(", "::connect"];
+    const NOT_LOOPBACK: &[&str] = &[
+        "0.0.0.0",
+        "UNSPECIFIED",
+        "Ipv6Addr",
+        "SocketAddr::new",
+        "SocketAddrV",
+        "IpAddr::",
+    ];
+    let files = sources();
+    let auth = files.iter().find(|f| f.name == "auth.rs").expect("auth.rs");
+    assert_eq!(
+        auth.code.matches("bind(").count(),
+        1,
+        "auth.rs must bind exactly one listener"
+    );
+    assert!(
+        auth.code
+            .contains("TcpListener::bind((Ipv4Addr::LOCALHOST, 0))"),
+        "the listener must bind 127.0.0.1 on a system-chosen port"
+    );
+    let hits = find(std::slice::from_ref(auth), DIALLING_OUT);
+    assert!(hits.is_empty(), "auth.rs dials out: {hits:?}");
+    let hits = find(std::slice::from_ref(auth), NOT_LOOPBACK);
+    assert!(
+        hits.is_empty(),
+        "auth.rs names an address other than the loopback one: {hits:?}"
+    );
+    for file in files.iter().filter(|file| file.name != "auth.rs") {
+        // The egress module's own tests start local servers; they come after its
+        // `#[cfg(test)]` marker, and the code above the marker must bind nothing.
+        let marker = file.code.find("#[cfg(test)]");
+        let checked = match marker {
+            Some(at) if file.name == "http.rs" => file.code.get(..at).unwrap_or_default(),
+            _ => file.code.as_str(),
+        };
+        assert!(
+            !checked.contains("bind("),
+            "{}: only auth.rs may bind a listener",
+            file.name
+        );
+    }
 }
 
 /// The server composes no mail. No crate that builds or sends a message is used, and none of
@@ -489,7 +586,14 @@ fn no_logger_or_tracing_subscriber_is_installed() {
 /// generated at build time, would escape them, so neither is allowed.
 #[test]
 fn no_code_is_pulled_in_from_outside_the_scanned_files() {
-    const INCLUDES: &[&str] = &["#[path", "include!", "include_str!", "include_bytes!"];
+    // `cfg_attr(.., path = ..)` is `#[path]` in disguise.
+    const INCLUDES: &[&str] = &[
+        "#[path",
+        "cfg_attr",
+        "include!",
+        "include_str!",
+        "include_bytes!",
+    ];
     let files = sources();
     let hits = find(&files, INCLUDES);
     assert!(hits.is_empty(), "code included from elsewhere: {hits:?}");
@@ -534,4 +638,45 @@ fn nothing_prints_and_only_the_log_module_writes_to_stderr() {
         .collect();
     let hits = find(&outside_log, &["stderr"]);
     assert!(hits.is_empty(), "stderr used outside src/log.rs: {hits:?}");
+}
+
+/// `auth` shows the consent address through the logger. If the announcer were anything else,
+/// the user would never see the address and the sign-in would wait for nothing.
+#[test]
+fn the_sign_in_shows_the_consent_address_through_the_logger() {
+    let files = sources();
+    let auth = files.iter().find(|f| f.name == "auth.rs").expect("auth.rs");
+    assert!(
+        auth.code.contains("&log::consent_url"),
+        "auth::run must pass log::consent_url as the announcer"
+    );
+}
+
+/// The README promises that no token or secret file is written, and `auth` promises that it
+/// never deletes the user's client secret file. Nothing in `src/` creates, writes, copies,
+/// renames or removes a file or folder; reading the client secret file is all it does.
+#[test]
+fn nothing_writes_or_deletes_a_file() {
+    const FILE_WRITES: &[&str] = &[
+        "File::create",
+        "create_new",
+        "OpenOptions",
+        "fs::write",
+        "fs::copy",
+        "fs::rename",
+        "fs::remove",
+        "remove_file",
+        "remove_dir",
+        "create_dir",
+        "set_permissions",
+        "hard_link",
+        "symlink",
+        "write_all_at",
+    ];
+    let files = sources();
+    let hits = find(&files, FILE_WRITES);
+    assert!(
+        hits.is_empty(),
+        "file writes or deletions in the source: {hits:?}"
+    );
 }
