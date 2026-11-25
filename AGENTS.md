@@ -1,6 +1,6 @@
 # Agent instructions
 
-GMail-MCP is an unofficial, minimal Gmail MCP server in Rust. Its value is that it is small and hard to abuse. Modules that the decision records name may not exist yet; check `src/` for what does. Rules and process: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilities: [SECURITY.md](SECURITY.md) (tell the user, never open a public issue). Why the design is the way it is: the decision records (ADRs) in [docs/decisions/](docs/decisions/).
+GMail-MCP is an unofficial, minimal Gmail MCP server in Rust. Its value is that it is small and hard to abuse. Modules that the decision records name may not exist yet; check `src/` for what does. Rules and process: [CONTRIBUTING.md](CONTRIBUTING.md). Vulnerabilities: [SECURITY.md](SECURITY.md) (tell the user, never open a public issue). Why the design is the way it is: the decision records (ADRs) in [docs/decisions/](docs/decisions/). Resuming the build or picking the next task: start with [docs/ROADMAP.md](docs/ROADMAP.md) (state, next steps, code map); history and pitfalls are in [docs/DEVELOPMENT-LOG.md](docs/DEVELOPMENT-LOG.md).
 
 ## Check your work
 
