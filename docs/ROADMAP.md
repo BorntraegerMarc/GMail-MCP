@@ -22,7 +22,7 @@ If the next step is the maintainer's (merge, sign-in, live test), say so and sto
 |---|---|---|
 | 0, 0b | Scaffold, CI and security tooling, agent instructions, decision records | Merged: #1 (`b8923a0`), toolchain bump #2 (`42b0aae`) |
 | 1 | Policy core: the one scope, the egress guard, untrusted-content handling | Merged: #3 (`13eb58e`) |
-| 2 | Sign-in: `gmail-mcp auth`, the Keychain store, the scope refusal | Finished on branch `feat/auth`; pull request #4 is open (chunk 0 below). Its first CI run (2026-11-25) passed every job except the CodeQL results check, five alerts in test code, fixed in the next commit |
+| 2 | Sign-in: `gmail-mcp auth`, the Keychain store, the scope refusal | Merged: #4 (`27dda25`); CI, Security and Scorecard on `main` all green (15 check runs) |
 | 3 | Gmail client, the four read tools, the MCP server | Not started. Split in two for the beta: 3a Gmail core (chunk 1) and 3b MCP server (chunk 2) |
 | 4 | Full README, SETUP.md, AUDIT.md, first release | After the beta, see "After the beta: v1.0" |
 
@@ -47,9 +47,9 @@ Budget is model spend at Bedrock global Sonnet 5.5 prices in lean sessions, plus
 
 ### Chunk 0: land phase 2
 
-- [ ] The pull request from `feat/auth` is merged into `main` and `ci-success` is green on `main`.
+- [x] The pull request from `feat/auth` is merged into `main` and `ci-success` is green on `main`.
 
-Pull request #4 was opened on 2026-11-25. Its first CI run passed every job except the CodeQL results check: five "cleartext logging" alerts, all in test code, where an assert message interpolated the debug output of a secret type. The next commit makes those messages static. When the re-run is green, the maintainer merges (squash). If a session is asked to continue before that: read CI (`pull_request_read`, methods `get_check_runs` and, for the alerts, the check run's annotations), fix what is red on the same branch, and never weaken a check to get green; a failure that needs more than about 15 calls means stop and report. Done when: `git log origin/main` shows the phase 2 commit and CI on `main` is green.
+**Done 2026-11-25:** pull request #4 was merged (squash `27dda25`) and CI, Security and Scorecard on `main` all passed (15 check runs, `macos-store` and both CodeQL jobs included). The rest of this section is the history. Pull request #4 was opened on 2026-11-25. Its first CI run passed every job except the CodeQL results check: five "cleartext logging" alerts, all in test code, where an assert message interpolated the debug output of a secret type. The next commit makes those messages static. When the re-run is green, the maintainer merges (squash). If a session is asked to continue before that: read CI (`pull_request_read`, methods `get_check_runs` and, for the alerts, the check run's annotations), fix what is red on the same branch, and never weaken a check to get green; a failure that needs more than about 15 calls means stop and report. Done when: `git log origin/main` shows the phase 2 commit and CI on `main` is green.
 
 ### Chunk 1: phase 3a, Gmail core (branch `feat/gmail-core`, from `main`)
 
@@ -120,6 +120,7 @@ Append one line per finished chunk: date, chunk, result, branch or commit, calls
 |---|---|---|---|---|---|
 | 2026-11-25 | planning | Beta v1 plan written (this file) | `feat/auth` | | `rmcp` kept (maintainer's choice); chunks as above |
 | 2026-11-25 | 0 (partly) | First CI run read; 5 CodeQL alerts in tests fixed with static assert messages | `feat/auth`, commit after `cd71baa` | about 25 | everything else passed on the first run, `macos-store` included; merge still the maintainer's |
+| 2026-11-25 | 0 | Done: PR #4 merged (`27dda25`); CI on `main` green | `main` | about 5 | read through the GitHub API; chunk 1 plan approved, branch `feat/gmail-core` |
 
 ## After the beta: v1.0
 
