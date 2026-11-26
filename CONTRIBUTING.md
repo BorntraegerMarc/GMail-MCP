@@ -23,7 +23,7 @@ A new direct dependency must be:
 
 ## Security-critical files
 
-Review these with extra care, and expect extra scrutiny of changes to them: `src/http.rs` (the only network egress), `src/policy.rs`, `src/auth.rs`, `src/store.rs`, `src/store/`, `src/text.rs`, `src/tools.rs`, `src/log.rs`, `deny.toml`, `clippy.toml`, the `[lints]` tables in `Cargo.toml`, `.github/workflows/`, everything under `tests/`, and `AGENTS.md` and `CLAUDE.md` (they steer other contributors' coding agents).
+Review these with extra care, and expect extra scrutiny of changes to them: `src/http.rs` (the only network egress), `src/policy.rs`, `src/auth.rs`, `src/store.rs`, `src/store/`, `src/text.rs`, `src/gmail.rs`, `src/session.rs`, `src/tools.rs`, `src/log.rs`, `deny.toml`, `clippy.toml`, the `[lints]` tables in `Cargo.toml`, `.github/workflows/`, everything under `tests/`, and `AGENTS.md` and `CLAUDE.md` (they steer other contributors' coding agents).
 
 ## Local checks
 

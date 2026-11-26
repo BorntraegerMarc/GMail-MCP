@@ -22,13 +22,13 @@ If the next step is the maintainer's (merge, sign-in, live test), say so and sto
 |---|---|---|
 | 0, 0b | Scaffold, CI and security tooling, agent instructions, decision records | Merged: #1 (`b8923a0`), toolchain bump #2 (`42b0aae`) |
 | 1 | Policy core: the one scope, the egress guard, untrusted-content handling | Merged: #3 (`13eb58e`) |
-| 2 | Sign-in: `gmail-mcp auth`, the Keychain store, the scope refusal | Finished on branch `feat/auth`; pull request #4 is open (chunk 0 below). Its first CI run (2026-11-25) passed every job except the CodeQL results check, five alerts in test code, fixed in the next commit |
-| 3 | Gmail client, the four read tools, the MCP server | Not started. Split in two for the beta: 3a Gmail core (chunk 1) and 3b MCP server (chunk 2) |
+| 2 | Sign-in: `gmail-mcp auth`, the Keychain store, the scope refusal | Merged: #4 (`27dda25`); CI, Security and Scorecard on `main` all green (15 check runs) |
+| 3 | Gmail client, the four read tools, the MCP server | 3a Gmail core (chunk 1) is finished on branch `feat/gmail-core`, with no pull request yet; 3b MCP server (chunk 2) is not started |
 | 4 | Full README, SETUP.md, AUDIT.md, first release | After the beta, see "After the beta: v1.0" |
 
 **Works today** (by tests; never yet against Google): `gmail-mcp auth [--credentials <client_secret.json>]` runs the sign-in and stores read-only credentials in the macOS Keychain. Other platforms fail closed and never fall back to a file.
 
-**Does not exist yet:** any Gmail call, any tool, any MCP server. `gmail-mcp serve` says it is not implemented and exits with code 2, so nothing can be used from Claude until chunk 2 lands.
+**Exists as library code, tested against fakes only (never against Google):** the Gmail client, the token refresh and the four tools as plain functions (`src/gmail.rs`, `src/session.rs`, `src/tools.rs`). **Does not exist yet:** an MCP server. `gmail-mcp serve` says it is not implemented and exits with code 2, so nothing can be used from Claude until chunk 2 lands.
 
 Size at the end of phase 2: about 4,300 lines in `src/` (a good part is unit tests), about 200 tests (4 `#[ignore]`d), 82 crates in the Linux dependency tree and 87 on macOS, 15 decision records.
 
@@ -47,13 +47,13 @@ Budget is model spend at Bedrock global Sonnet 5.5 prices in lean sessions, plus
 
 ### Chunk 0: land phase 2
 
-- [ ] The pull request from `feat/auth` is merged into `main` and `ci-success` is green on `main`.
+- [x] The pull request from `feat/auth` is merged into `main` and `ci-success` is green on `main`.
 
-Pull request #4 was opened on 2026-11-25. Its first CI run passed every job except the CodeQL results check: five "cleartext logging" alerts, all in test code, where an assert message interpolated the debug output of a secret type. The next commit makes those messages static. When the re-run is green, the maintainer merges (squash). If a session is asked to continue before that: read CI (`pull_request_read`, methods `get_check_runs` and, for the alerts, the check run's annotations), fix what is red on the same branch, and never weaken a check to get green; a failure that needs more than about 15 calls means stop and report. Done when: `git log origin/main` shows the phase 2 commit and CI on `main` is green.
+**Done 2026-11-25:** pull request #4 was merged (squash `27dda25`) and CI, Security and Scorecard on `main` all passed (15 check runs, `macos-store` and both CodeQL jobs included). The rest of this section is the history. Pull request #4 was opened on 2026-11-25. Its first CI run passed every job except the CodeQL results check: five "cleartext logging" alerts, all in test code, where an assert message interpolated the debug output of a secret type. The next commit makes those messages static. When the re-run is green, the maintainer merges (squash). If a session is asked to continue before that: read CI (`pull_request_read`, methods `get_check_runs` and, for the alerts, the check run's annotations), fix what is red on the same branch, and never weaken a check to get green; a failure that needs more than about 15 calls means stop and report. Done when: `git log origin/main` shows the phase 2 commit and CI on `main` is green.
 
 ### Chunk 1: phase 3a, Gmail core (branch `feat/gmail-core`, from `main`)
 
-- [ ] `Tools` with its four methods exists, is tested against fakes, and `cargo test --locked` is green on the pushed branch. `serve` is still the stub.
+- [x] `Tools` with its four methods exists, is tested against fakes, and `cargo test --locked` is green on the pushed branch. `serve` is still the stub.
 
 Read first, and only this: the route table and limits in `src/policy.rs`, `text::Untrusted`, `auth::Guarded` and `auth::login`, `store::{CredentialStore, Credentials}`, and the helpers in `tests/auth_flow.rs`.
 
@@ -120,6 +120,8 @@ Append one line per finished chunk: date, chunk, result, branch or commit, calls
 |---|---|---|---|---|---|
 | 2026-11-25 | planning | Beta v1 plan written (this file) | `feat/auth` | | `rmcp` kept (maintainer's choice); chunks as above |
 | 2026-11-25 | 0 (partly) | First CI run read; 5 CodeQL alerts in tests fixed with static assert messages | `feat/auth`, commit after `cd71baa` | about 25 | everything else passed on the first run, `macos-store` included; merge still the maintainer's |
+| 2026-11-25 | 0 | Done: PR #4 merged (`27dda25`); CI on `main` green | `main` | about 5 | read through the GitHub API; chunk 1 plan approved, branch `feat/gmail-core` |
+| 2026-11-25 | 1 | Gmail core finished: `gmail`, `session`, `tools` and 27 tests; fmt, clippy, rustdoc and all tests green locally; 8 of 8 deliberate breakages of the new guards were caught | `feat/gmail-core` | about 50 | no pull request yet, so CI has not run; `base64` `=0.22.1` added (already in the tree); the Implementation lines of ADRs 0004, 0005, 0006 and 0014 and the security-critical list moved into this chunk |
 
 ## After the beta: v1.0
 
@@ -139,6 +141,8 @@ Beta shortcuts (debt on purpose; add to this list whenever a chunk takes another
 - A token response without a `scope` field is refused; whether Google ever omits it is unchecked.
 - Tool calls share one session behind a lock, so they run one at a time; cancellation is not handled.
 - Tests are the minimum listed per chunk; no review beyond the self-check.
+- Text parts are decoded as UTF-8 with replacement characters: the declared charset is ignored.
+- A search hit whose metadata read answers 404 is skipped without a note, and a JSON answer nested deeper than 128 levels fails the whole call with a static error (the parser's limit).
 
 Older items:
 
@@ -163,7 +167,10 @@ Older items:
 | `src/auth.rs` | The sign-in: `run`, `authenticate`, `login`, the loopback listener, `Guarded` (the `oauth2` HTTP adapter over the egress guard), `parse_client_file` |
 | `src/store.rs`, `src/store/keychain.rs` | `CredentialStore` (`load`, `save`, `remove`), `Credentials` (cannot hold another scope), `Secret`, the `Unavailable` stub, `platform()`, the macOS `Keychain` |
 | `src/log.rs` | stderr logging with `&'static str` messages only; `consent_text` is the single exception (ADR 0015) |
-| planned | `src/gmail.rs`, `src/session.rs`, `src/tools.rs` (chunk 1), `src/server.rs` (chunk 2) |
+| `src/gmail.rs` | The Gmail client over a one-method `Transport` (`EgressTransport` in production): labels, thread search with a metadata read per hit, thread and message in full; the MIME walk (depth 8, 200 parts, 1 MiB of text); statuses to static errors; one refresh and one retry after a 401 |
+| `src/session.rs` | `Session` and the `TokenSource` trait: credentials loaded on the first token request, the refresh-token grant over `auth::Guarded`, `check_grant` on every token response |
+| `src/tools.rs` | `Tools` with `list_labels`, `search_threads`, `get_thread` and `get_message`, and `ToolError`; every mail-derived string goes through `text::Untrusted` |
+| planned | `src/server.rs` (chunk 2) |
 | `tests/` | `static_policy` (source scans), `egress_policy` (route table), `deps_policy` (direct dependencies), `auth_flow`, `auth_redirect`, `auth_client_file`, `consent_url`, `store_policy`, `keychain_macos` (ignored), `secrets_script`, `cli_binary`, `ci_workflow`; planned: `stdio_smoke` |
 | `scripts/` | `verify-no-plaintext-secrets.sh` (the maintainer runs it after the sign-in), `release-notes.sh` |
 | `.github/workflows/` | `ci.yml` (all jobs, aggregate check `ci-success`), `security.yml`, `scorecard.yml`, `release.yml` |

@@ -1,7 +1,7 @@
 # 0005. Untrusted email content handling
 
 - Status: Accepted (2026-11-23)
-- Implementation: Partly in place (phase 1). `src/text.rs` has the sanitizer, the nonce wrapper with its shared character budget, truncation and the HTML-to-text converter (0013), with unit, structural-cost and property tests. Planned: `src/tools.rs`, which applies them to every tool result, in phase 3 (Gmail client and MCP tools).
+- Implementation: Partly in place (phase 1). `src/text.rs` has the sanitizer, the nonce wrapper with its shared character budget, truncation and the HTML-to-text converter (0013), with unit, structural-cost and property tests. In place (phase 3a): `src/tools.rs` applies them to every tool result, `src/gmail.rs` reads Gmail's answers within fixed limits (MIME depth 8, 200 parts, 1 MiB of text per message) and `tests/gmail_tools.rs` pins, with hostile fixtures, that no mail-derived text leaves a wrapper and that no look-alike delimiter survives inside one.
 
 ## Context
 

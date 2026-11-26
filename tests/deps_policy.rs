@@ -32,6 +32,12 @@ struct Allowed {
 const ALLOWED: &[Allowed] = &[
     Allowed {
         table: "dependencies",
+        name: "base64",
+        default_features: false,
+        features: &["std"],
+    },
+    Allowed {
+        table: "dependencies",
         name: "oauth2",
         default_features: false,
         features: &[],

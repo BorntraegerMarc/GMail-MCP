@@ -4,7 +4,7 @@ How the project was built so far (2026-11-21 to 2026-11-25): what each phase del
 
 ## How the work is organised
 
-- One pull request per phase, each branch cut from `main` and squash-merged by the maintainer: `chore/scaffold` (#1), `feat/policy-core` (#3), `feat/auth` (phase 2, no pull request yet). Dependabot proposed the toolchain bump (#2).
+- One pull request per phase, each branch cut from `main` and squash-merged by the maintainer: `chore/scaffold` (#1), `feat/policy-core` (#3), `feat/auth` (phase 2, #4). Dependabot proposed the toolchain bump (#2).
 - An AI coding assistant wrote the code and the documents under the maintainer's review. `AGENTS.md` and the decision records exist so that any session can continue from the repository alone.
 - Every phase ends with the same local checks: `cargo fmt --all --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked` and, after rustdoc changes, `RUSTDOCFLAGS='-D warnings' cargo doc --locked --no-deps`.
 - The maintainer runs everything that touches a real account: the OAuth sign-in, the Keychain tests and the GitHub settings. Tests use synthetic fixtures and fake servers.
@@ -71,6 +71,12 @@ Measured facts (2026-11-24): Google's device flow does not allow Gmail scopes (A
 
 State at the hand-off: fmt, clippy (macOS and simulated Linux), rustdoc and the tests were green locally, and the repository was free of plaintext-secret patterns and personal data. Not verified: any CI run, the Keychain on a real machine, the live Google flow.
 
+## Phase 3a: Gmail core (chunk 1 of the beta)
+
+Delivered: `gmail` (the client over a one-method `Transport`; labels, thread search with one metadata read per hit, thread and message with `format=full`; a MIME walk bounded to depth 8, 200 parts and 1 MiB of text; statuses mapped to static errors; one refresh and one retry after a 401), `session` (credentials read on the first token request, the refresh-token grant through `oauth2` over `auth::Guarded`, `policy::check_grant` on every token response) and `tools` (the four read tools as plain functions, every mail-derived string through `text::Untrusted`). One new direct dependency, `base64` pinned to 0.22.1, which the tree already held. 27 new tests in `tests/gmail_tools.rs` and `tests/session_refresh.rs`, all with synthetic hostile mail and fakes; nothing was run against Google.
+
+How it was checked: fmt, clippy `--all-targets`, rustdoc and the full suite, then eight deliberate breakages of the new guards (the 401 retry, the MIME depth, the part count, the query encoding, the grant check, the store re-read, the per-message share of the budget, a header left unwrapped); each turned a test red. There was no reviewer. The one thing the checks found was the scope scan tripping on a field name (see the pitfalls).
+
 ## Decisions of 2026-11-25 (planning the beta)
 
 - **A cheap beta first.** The remaining work is cut into chunks (land phase 2; Gmail core; MCP server; live test) with a budget of about $14 in model spend (range $10 to $19) instead of one large phase 3 and phase 4. Everything polished moves to the roadmap's "After the beta" and backlog.
@@ -86,6 +92,7 @@ Static scans (`tests/static_policy.rs`):
 - They read all of `src/`, `#[cfg(test)]` modules included, with comments removed (raw and byte strings handled). Keep these out of `src/`: process APIs such as `Command`, `stdout` or `stderr` outside `log.rs`, `.delete(` and `.put(`, plain `http://` literals (build them from parts in tests), `std::net`, `TcpListener` and `TcpStream` outside the two files that may use them, `connect(`, a second `bind(`, `cfg_attr`. Hostile samples belong in `tests/`, described by a comment in `src/`. The store's removal method is called `remove` for this reason.
 - A new direct dependency fails `tests/deps_policy.rs` until its allowlist is updated (macOS-only crates go in `MACOS_TABLE`). The test asks `cargo metadata`, so renamed, target-specific and build dependencies are caught too.
 - The token `stdout` is banned in all of `src/` (and `stderr` outside `log.rs`), so protocol output has to come from a dependency's transport. URL literals are allowed only for `https` and the two Google hosts (the consent page only in `policy.rs`); a URL assembled with `format!` is not seen by that scan.
+- The scope scan reads the fragments `gmail.labels` and `gmail.metadata` anywhere in code, so a field called `gmail` with a method `labels` (`self.gmail.labels()`) fails it. Name such a field `client`.
 
 CI:
 
